@@ -1,73 +1,318 @@
-# React + TypeScript + Vite
+# VChat V2
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+<div align="center">
 
-Currently, two official plugins are available:
+**A modern, scalable real-time communication platform built with React, TypeScript, and Firebase**
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue.svg)](https://www.typescriptlang.org/)
+[![React](https://img.shields.io/badge/React-19.2-61dafb.svg)](https://reactjs.org/)
+[![Vite](https://img.shields.io/badge/Vite-7.3-646cff.svg)](https://vitejs.dev/)
+[![Firebase](https://img.shields.io/badge/Firebase-12.9-ffca28.svg)](https://firebase.google.com/)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind-4.1-38bdf8.svg)](https://tailwindcss.com/)
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
-## React Compiler
+</div>
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+---
 
-## Expanding the ESLint configuration
+## Overview
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+VChat V2 is a complete rewrite of the legacy VChat application, designed to provide professional-grade real-time messaging, voice/video calling, and collaboration features. Built with modern web technologies, it emphasizes type safety, performance, and exceptional user experience.
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
+### Key Features
 
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
+- **Real-time Messaging** - Instant message delivery with Firestore real-time listeners
+- **Rich Text Features** - Emoji reactions, message threading, editing, and file attachments
+- **Video & Audio Calls** - High-quality peer-to-peer communication with screen sharing
+- **Smart Presence** - Automatic online/offline status tracking
+- **Typing Indicators** - Live feedback when users are composing messages
+- **Multi-Provider Auth** - Email/Password, Google, and GitHub sign-in
+- **Mobile-First** - Responsive design optimized for all screen sizes
+- **Type Safe** - Full TypeScript coverage for robust development
+- **PWA Ready** - Offline support and installable experience
 
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+---
+
+## Tech Stack
+
+### Frontend
+
+- **Framework**: React 19.2 with TypeScript 5.9
+- **Build Tool**: Vite 7.3 (Lightning-fast HMR)
+- **Styling**: Tailwind CSS v4.1 (CSS-based theming)
+- **Routing**: React Router DOM v7
+- **Icons**: Lucide React
+- **Date Utilities**: date-fns
+
+### Backend & Services
+
+- **Authentication**: Firebase Auth
+- **Database**:
+  - Firestore (persistent data: users, rooms, messages)
+  - Realtime Database (ephemeral data: presence, typing indicators)
+- **Storage**: Firebase Storage (images, file attachments)
+- **Hosting**: Vercel (CI/CD pipeline)
+
+### Real-time Communication
+
+- **Chat Sync**: Firestore `onSnapshot` listeners
+- **Video/Audio**: LiveKit (SFU architecture)
+- **WebRTC**: PeerJS (fallback/learning implementation)
+
+### Code Quality
+
+- **Linting**: ESLint 9 with TypeScript support
+- **Formatting**: Prettier
+- **Pre-commit Hooks**: Husky + lint-staged
+- **Testing**: Jest + React Testing Library _(coming soon)_
+
+---
+
+## Project Structure
+
+```
+VChat-V2/
+├── docs/                    # Documentation
+│   ├── SPEC.md             # Technical specification
+│   ├── V2_ROADMAP.md       # Development roadmap
+│   └── phase plans/        # Phase-by-phase implementation guides
+├── src/
+│   ├── config/             # Firebase and app configuration
+│   ├── context/            # React Context providers (Auth, Theme)
+│   ├── components/         # Reusable UI components
+│   │   ├── ui/            # Base components (Button, Input, Modal)
+│   │   └── features/      # Feature-specific components
+│   ├── pages/              # Route pages (Login, Chat, Profile)
+│   ├── hooks/              # Custom React hooks
+│   ├── lib/                # Utilities and helpers
+│   ├── types/              # TypeScript type definitions
+│   └── styles/             # Global styles and Tailwind config
+├── public/                 # Static assets
+└── .husky/                 # Git hooks
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+---
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x';
-import reactDom from 'eslint-plugin-react-dom';
+## Getting Started
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-]);
+### Prerequisites
+
+- **Node.js** 18+ and npm/yarn
+- **Firebase Account** (for backend services)
+- **Git** for version control
+
+### Installation
+
+1. **Clone the repository**
+
+   ```bash
+   git clone https://github.com/yourusername/VChat-V2.git
+   cd VChat-V2
+   ```
+
+2. **Install dependencies**
+
+   ```bash
+   npm install
+   ```
+
+3. **Configure Firebase**
+   - Create a Firebase project at [console.firebase.google.com](https://console.firebase.google.com)
+   - Enable Authentication (Email/Password, Google)
+   - Enable Firestore Database
+   - Enable Firebase Storage
+   - Copy your Firebase config and create `.env.local`:
+
+   ```env
+   VITE_FIREBASE_API_KEY=your_api_key
+   VITE_FIREBASE_AUTH_DOMAIN=your_auth_domain
+   VITE_FIREBASE_PROJECT_ID=your_project_id
+   VITE_FIREBASE_STORAGE_BUCKET=your_storage_bucket
+   VITE_FIREBASE_MESSAGING_SENDER_ID=your_sender_id
+   VITE_FIREBASE_APP_ID=your_app_id
+   ```
+
+4. **Start development server**
+
+   ```bash
+   npm run dev
+   ```
+
+   Open [http://localhost:5173](http://localhost:5173) in your browser.
+
+---
+
+## Available Scripts
+
+| Command           | Description                        |
+| ----------------- | ---------------------------------- |
+| `npm run dev`     | Start development server with HMR  |
+| `npm run build`   | Build optimized production bundle  |
+| `npm run preview` | Preview production build locally   |
+| `npm run lint`    | Run ESLint for code quality checks |
+| `npm run format`  | Format code with Prettier          |
+
+---
+
+## Development Roadmap
+
+VChat V2 is being built in **4 phases**:
+
+### ✅ Phase 1: Foundation & Authentication (Weeks 1-2)
+
+- [x] Project scaffolding with Vite + React + TypeScript
+- [x] Tailwind CSS v4 configuration
+- [x] Firebase SDK integration
+- [ ] Authentication UI (Login/Signup)
+- [ ] Auth Context with session persistence
+
+### Phase 2: Core Features (Weeks 3-4)
+
+- [ ] Room management (create, list, join)
+- [ ] Real-time messaging with Firestore
+- [ ] User profiles and presence tracking
+- [ ] Message input with file upload
+
+### Phase 3: Enhanced Messaging (Weeks 5-6)
+
+- [ ] Emoji reactions
+- [ ] Message threading (replies)
+- [ ] Edit/delete messages
+- [ ] Typing indicators
+- [ ] Search and filters
+
+### Phase 4: Video Integration (Weeks 7-8)
+
+- [ ] LiveKit integration
+- [ ] 1-on-1 video calls
+- [ ] Screen sharing
+- [ ] Call notifications and UI
+
+For detailed task breakdowns, see [docs/phase plans/](docs/phase%20plans/).
+
+---
+
+## Data Architecture
+
+### User Model
+
+```typescript
+interface User {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoURL: string;
+  status: 'online' | 'away' | 'offline';
+  bio?: string;
+  createdAt: Timestamp;
+  lastSeen: Timestamp;
+}
 ```
+
+### Room Model
+
+```typescript
+interface Room {
+  id: string;
+  name: string;
+  description: string;
+  type: 'text' | 'voice' | 'video';
+  createdBy: string;
+  members: string[];
+  isPrivate: boolean;
+  createdAt: Timestamp;
+}
+```
+
+### Message Model
+
+```typescript
+interface Message {
+  id: string;
+  roomId: string;
+  userId: string;
+  content: string;
+  type: 'text' | 'image' | 'file' | 'system';
+  reactions: Record<string, string[]>;
+  edited: boolean;
+  editedAt?: Timestamp;
+  replyTo?: string;
+  fileUrl?: string;
+  createdAt: Timestamp;
+}
+```
+
+See [docs/SPEC.md](docs/SPEC.md) for complete data models.
+
+---
+
+## Performance Targets
+
+- **Build Time**: < 3s (Dev), < 30s (Prod)
+- **Bundle Size**: < 200KB (gzipped)
+- **Lighthouse Score**: > 95 (Performance, Accessibility, Best Practices)
+- **First Contentful Paint**: < 1.5s
+- **Time to Interactive**: < 3.5s
+
+---
+
+## Contributing
+
+We welcome contributions! Please follow these guidelines:
+
+1. **Fork** the repository
+2. Create a **feature branch** (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes with conventional commits (`feat:`, `fix:`, `docs:`)
+4. **Push** to your branch (`git push origin feature/amazing-feature`)
+5. Open a **Pull Request**
+
+### Commit Convention
+
+- `feat:` - New features
+- `fix:` - Bug fixes
+- `docs:` - Documentation changes
+- `style:` - Code formatting (no logic changes)
+- `refactor:` - Code restructuring
+- `test:` - Adding or updating tests
+- `chore:` - Maintenance tasks
+
+---
+
+## Security
+
+### Firestore Security Rules
+
+- Row-level security ensures users can only access permitted data
+- Private rooms are restricted to members only
+- Users can only edit/delete their own content
+
+### Storage Rules
+
+- Authenticated uploads only
+- Max file size: 10MB
+- Allowed file types: images (jpg, png, gif, webp), documents (pdf)
+
+---
+
+## License
+
+This project is licensed under the **MIT License** - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## Acknowledgments
+
+- Built with [React](https://react.dev/)
+- Powered by [Firebase](https://firebase.google.com/)
+- Styled with [Tailwind CSS](https://tailwindcss.com/)
+- Icons from [Lucide](https://lucide.dev/)
+
+---
+
+<div align="center">
+
+**Made with ❤️ by the VChat Team**
+
+[Report Bug](https://github.com/yourusername/VChat-V2/issues) · [Request Feature](https://github.com/yourusername/VChat-V2/issues)
+
+</div>
