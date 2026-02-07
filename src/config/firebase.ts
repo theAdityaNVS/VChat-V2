@@ -1,8 +1,12 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, Auth } from 'firebase/auth';
-import { getFirestore, Firestore } from 'firebase/firestore';
-import { getStorage, FirebaseStorage } from 'firebase/storage';
-import { getDatabase, Database } from 'firebase/database';
+import { getAuth } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
+import { getDatabase } from 'firebase/database';
+import type { Auth } from 'firebase/auth';
+import type { Firestore } from 'firebase/firestore';
+import type { FirebaseStorage } from 'firebase/storage';
+import type { Database } from 'firebase/database';
 import type { FirebaseConfig } from '../types/firebase';
 
 /**

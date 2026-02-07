@@ -2,6 +2,8 @@
  * Firebase Configuration Types
  */
 
+import type { Timestamp } from 'firebase/firestore';
+
 export interface FirebaseConfig {
   apiKey: string;
   authDomain: string;
@@ -23,8 +25,8 @@ export interface User {
   photoURL: string;
   status: 'online' | 'away' | 'offline';
   bio?: string;
-  createdAt: FirebaseFirestore.Timestamp;
-  lastSeen: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
+  lastSeen: Timestamp;
 }
 
 export interface Room {
@@ -35,7 +37,7 @@ export interface Room {
   createdBy: string;
   members: string[];
   isPrivate: boolean;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 
 export interface Message {
@@ -46,10 +48,10 @@ export interface Message {
   type: 'text' | 'image' | 'file' | 'system';
   reactions: Record<string, string[]>;
   edited: boolean;
-  editedAt?: FirebaseFirestore.Timestamp;
+  editedAt?: Timestamp;
   replyTo?: string;
   fileUrl?: string;
-  createdAt: FirebaseFirestore.Timestamp;
+  createdAt: Timestamp;
 }
 
 export interface Call {
@@ -58,6 +60,6 @@ export interface Call {
   participants: string[];
   type: 'audio' | 'video';
   status: 'ringing' | 'active' | 'ended';
-  startedAt: FirebaseFirestore.Timestamp;
-  endedAt?: FirebaseFirestore.Timestamp;
+  startedAt: Timestamp;
+  endedAt?: Timestamp;
 }
