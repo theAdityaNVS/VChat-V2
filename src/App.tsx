@@ -4,6 +4,10 @@ import { RequireAuth } from './components/auth/RequireAuth';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
 import { Dashboard } from './pages/Dashboard';
+import MainLayout from './components/layouts/MainLayout';
+import ChatWelcome from './pages/ChatWelcome';
+import ChatRoom from './pages/ChatRoom';
+import Profile from './pages/Profile';
 
 function App() {
   return (
@@ -19,7 +23,21 @@ function App() {
             path="/"
             element={
               <RequireAuth>
-                <Dashboard />
+                <MainLayout />
+              </RequireAuth>
+            }
+          >
+            <Route index element={<ChatWelcome />} />
+            <Route path="chat/:roomId" element={<ChatRoom />} />
+            <Route path="dashboard" element={<Dashboard />} />
+          </Route>
+
+          {/* Profile Route (separate from MainLayout for full-page experience) */}
+          <Route
+            path="/profile"
+            element={
+              <RequireAuth>
+                <Profile />
               </RequireAuth>
             }
           />
