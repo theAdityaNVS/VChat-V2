@@ -8,6 +8,7 @@ import {
   doc,
   updateDoc,
   serverTimestamp,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type { Message, SendMessageData } from '../types/message';
@@ -136,9 +137,10 @@ export const deleteMessage = async (roomId: string, messageId: string): Promise<
 };
 
 /**
- * Add reaction to a message
+ * Toggle reaction on a message
+ * If user already reacted with this emoji, remove it; otherwise add it
  */
-export const addReaction = async (
+export const toggleReaction = async (
   roomId: string,
   messageId: string,
   emoji: string,
@@ -147,12 +149,38 @@ export const addReaction = async (
 ): Promise<void> => {
   try {
     const messageRef = doc(db, 'rooms', roomId, 'messages', messageId);
-    // This is a simplified version - in production, you'd want to check if the user already reacted
+    const messageDoc = await getDoc(messageRef);
+
+    if (!messageDoc.exists()) {
+      throw new Error('Message not found');
+    }
+
+    const data = messageDoc.data();
+    const currentReactions = (data.reactions || []) as Array<{
+      emoji: string;
+      userId: string;
+      userName: string;
+    }>;
+
+    // Check if user already reacted with this emoji
+    const existingReactionIndex = currentReactions.findIndex(
+      (r) => r.emoji === emoji && r.userId === userId
+    );
+
+    let newReactions;
+    if (existingReactionIndex !== -1) {
+      // Remove reaction
+      newReactions = currentReactions.filter((_, index) => index !== existingReactionIndex);
+    } else {
+      // Add reaction
+      newReactions = [...currentReactions, { emoji, userId, userName }];
+    }
+
     await updateDoc(messageRef, {
-      reactions: [{ emoji, userId, userName }],
+      reactions: newReactions,
     });
   } catch (error) {
-    console.error('Error adding reaction:', error);
-    throw new Error('Failed to add reaction');
+    console.error('Error toggling reaction:', error);
+    throw new Error('Failed to toggle reaction');
   }
 };

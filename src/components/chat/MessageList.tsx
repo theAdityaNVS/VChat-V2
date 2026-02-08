@@ -6,9 +6,20 @@ import type { Message as MessageType } from '../../types/message';
 interface MessageListProps {
   messages: MessageType[];
   loading: boolean;
+  onReaction?: (messageId: string, emoji: string) => void;
+  onEdit?: (messageId: string) => void;
+  onDelete?: (messageId: string) => void;
+  onReply?: (messageId: string) => void;
 }
 
-const MessageList = ({ messages, loading }: MessageListProps) => {
+const MessageList = ({
+  messages,
+  loading,
+  onReaction,
+  onEdit,
+  onDelete,
+  onReply,
+}: MessageListProps) => {
   const { currentUser } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
@@ -54,13 +65,27 @@ const MessageList = ({ messages, loading }: MessageListProps) => {
   return (
     <div className="flex-1 overflow-y-auto p-6">
       <div className="flex flex-col space-y-4">
-        {messages.map((message) => (
-          <Message
-            key={message.id}
-            message={message}
-            isOwnMessage={message.senderId === currentUser?.uid}
-          />
-        ))}
+        {messages.map((message) => {
+          // Find the message being replied to if this message is a reply
+          const replyToMessage = message.replyTo
+            ? messages.find((m) => m.id === message.replyTo)
+            : undefined;
+
+          return (
+            <Message
+              key={message.id}
+              message={message}
+              isOwnMessage={message.senderId === currentUser?.uid}
+              currentUserId={currentUser?.uid || ''}
+              currentUserName={currentUser?.displayName || currentUser?.email || 'Unknown'}
+              onReaction={onReaction}
+              onEdit={onEdit}
+              onDelete={onDelete}
+              onReply={onReply}
+              replyToMessage={replyToMessage}
+            />
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
     </div>
