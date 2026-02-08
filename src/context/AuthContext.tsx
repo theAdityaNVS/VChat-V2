@@ -11,6 +11,7 @@ import {
   updateUserProfile,
   getUserDocument,
 } from '../lib/authService';
+import { usePresence } from '../lib/presenceService';
 import type { User } from '../types/firebase';
 
 /**
@@ -49,6 +50,9 @@ export function AuthProvider({ children }: AuthProviderProps): React.ReactElemen
   const [userDoc, setUserDoc] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  // Manage user presence
+  usePresence(currentUser?.uid);
 
   /**
    * Fetch user document from Firestore
