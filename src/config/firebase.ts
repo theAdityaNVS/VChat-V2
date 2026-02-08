@@ -3,6 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getDatabase } from 'firebase/database';
+import { initializeAppCheck, ReCaptchaV3Provider } from 'firebase/app-check';
 import type { Auth } from 'firebase/auth';
 import type { Firestore } from 'firebase/firestore';
 import type { FirebaseStorage } from 'firebase/storage';
@@ -50,6 +51,30 @@ function getFirebaseConfig(): FirebaseConfig {
  */
 const firebaseConfig = getFirebaseConfig();
 const app = initializeApp(firebaseConfig);
+
+/**
+ * Initialize Firebase App Check with reCAPTCHA v3
+ * This protects your Firebase resources from abuse
+ */
+const recaptchaSiteKey = import.meta.env.VITE_RECAPTCHA_SITE_KEY;
+
+if (recaptchaSiteKey) {
+  // Initialize App Check
+  // In development, you can use a debug token
+  // For production, always use ReCaptchaV3Provider
+  try {
+    initializeAppCheck(app, {
+      provider: new ReCaptchaV3Provider(recaptchaSiteKey),
+      // Set to true to allow App Check to use debug tokens in development
+      isTokenAutoRefreshEnabled: true,
+    });
+    console.log('Firebase App Check initialized with reCAPTCHA v3');
+  } catch (error) {
+    console.error('Failed to initialize App Check:', error);
+  }
+} else {
+  console.warn('reCAPTCHA site key not found. App Check not initialized.');
+}
 
 /**
  * Firebase Services
