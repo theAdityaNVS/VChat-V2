@@ -1,19 +1,110 @@
 import { useParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
 import { useMessages } from '../hooks/useMessages';
 import { useRooms } from '../hooks/useRooms';
+import { setTypingStatus, subscribeToTyping, type TypingUser } from '../lib/typingService';
+import { uploadFile, isImageFile, type UploadProgress } from '../lib/uploadService';
+import type { Message } from '../types/message';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
+import TypingIndicator from '../components/chat/TypingIndicator';
 
 const ChatRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
-  const { messages, loading, sendMessage } = useMessages(roomId);
+  const { currentUser, userDoc } = useAuth();
+  const { messages, loading, sendMessage, toggleReaction, editMessage, deleteMessage } =
+    useMessages(roomId);
   const { rooms } = useRooms();
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
+  const [replyingTo, setReplyingTo] = useState<Message | null>(null);
 
   // Find the current room
   const currentRoom = rooms.find((room) => room.id === roomId);
 
+  // Subscribe to typing indicators
+  useEffect(() => {
+    if (!roomId || !currentUser) return;
+
+    const unsubscribe = subscribeToTyping(roomId, currentUser.uid, (users) => {
+      setTypingUsers(users);
+    });
+
+    return () => unsubscribe();
+  }, [roomId, currentUser]);
+
   const handleSendMessage = async (content: string): Promise<boolean> => {
-    return await sendMessage({ content });
+    const success = await sendMessage({
+      content,
+      replyTo: replyingTo?.id,
+    });
+
+    if (success) {
+      setReplyingTo(null);
+    }
+
+    return success;
+  };
+
+  const handleReaction = async (messageId: string, emoji: string) => {
+    await toggleReaction(messageId, emoji);
+  };
+
+  const handleReply = (messageId: string) => {
+    const message = messages.find((m) => m.id === messageId);
+    if (message) {
+      setReplyingTo(message);
+    }
+  };
+
+  const handleCancelReply = () => {
+    setReplyingTo(null);
+  };
+
+  const handleEdit = (messageId: string) => {
+    // TODO: Show edit UI - for now just use prompt
+    const message = messages.find((m) => m.id === messageId);
+    if (message) {
+      const newContent = prompt('Edit message:', message.content);
+      if (newContent && newContent.trim() && newContent !== message.content) {
+        editMessage(messageId, newContent.trim());
+      }
+    }
+  };
+
+  const handleDelete = async (messageId: string) => {
+    if (confirm('Are you sure you want to delete this message?')) {
+      await deleteMessage(messageId);
+    }
+  };
+
+  const handleTyping = (isTyping: boolean) => {
+    if (!roomId || !currentUser || !userDoc) return;
+
+    const userName = userDoc.displayName || currentUser.email || 'Anonymous';
+    setTypingStatus(roomId, currentUser.uid, userName, isTyping);
+  };
+
+  const handleSendFile = async (file: File): Promise<boolean> => {
+    if (!roomId) return false;
+
+    try {
+      // Upload file and get download URL
+      const downloadURL = await uploadFile(file, roomId, (progress: UploadProgress) => {
+        console.log('Upload progress:', progress);
+        // TODO: Show upload progress in UI
+      });
+
+      // Send message with the file URL
+      const messageType = isImageFile(file) ? 'image' : 'file';
+      return await sendMessage({
+        content: downloadURL,
+        type: messageType,
+      });
+    } catch (error) {
+      console.error('Error sending file:', error);
+      return false;
+    }
   };
 
   return (
@@ -53,10 +144,26 @@ const ChatRoom = () => {
       </div>
 
       {/* Messages Area */}
-      <MessageList messages={messages} loading={loading} />
+      <MessageList
+        messages={messages}
+        loading={loading}
+        onReaction={handleReaction}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onReply={handleReply}
+      />
+
+      {/* Typing Indicator */}
+      <TypingIndicator typingUsers={typingUsers} />
 
       {/* Message Input */}
-      <MessageInput onSendMessage={handleSendMessage} />
+      <MessageInput
+        onSendMessage={handleSendMessage}
+        onSendFile={handleSendFile}
+        onTyping={handleTyping}
+        replyingTo={replyingTo}
+        onCancelReply={handleCancelReply}
+      />
     </div>
   );
 };
