@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, User, Chrome } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
+import { useRecaptcha } from '../hooks/useRecaptcha';
 import { AuthLayout } from '../components/layouts/AuthLayout';
 import { Card } from '../components/ui/Card';
 import { Input } from '../components/ui/Input';
@@ -11,6 +12,7 @@ import { Alert } from '../components/ui/Alert';
 export const Signup: React.FC = () => {
   const navigate = useNavigate();
   const { signUp, signInWithGoogle, error } = useAuth();
+  const { executeRecaptcha } = useRecaptcha();
 
   const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
@@ -41,6 +43,10 @@ export const Signup: React.FC = () => {
 
     try {
       setIsLoading(true);
+
+      // Execute reCAPTCHA
+      await executeRecaptcha('signup');
+
       await signUp(email, password, displayName);
       navigate('/');
     } catch {
@@ -54,6 +60,10 @@ export const Signup: React.FC = () => {
     setLocalError(null);
     try {
       setIsLoading(true);
+
+      // Execute reCAPTCHA
+      await executeRecaptcha('google_signin');
+
       await signInWithGoogle();
       navigate('/');
     } catch {
