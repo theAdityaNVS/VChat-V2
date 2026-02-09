@@ -7,4 +7,13 @@ export default defineConfig({
   css: {
     postcss: './postcss.config.js',
   },
+  server: {
+    // Enable SPA fallback for dev server
+    proxy: {},
+    open: true,
+  },
+  preview: {
+    // Enable SPA fallback for preview server
+    proxy: {},
+  },
 });
