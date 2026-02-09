@@ -111,25 +111,48 @@ export const getUserRooms = async (userId: string): Promise<Room[]> => {
 
 /**
  * Subscribe to user's rooms in real-time
+ * Includes both rooms where user is a member AND all public rooms
  */
 export const subscribeToUserRooms = (
   userId: string,
   callback: (rooms: Room[]) => void
 ): (() => void) => {
   const roomsRef = collection(db, 'rooms');
-  const q = query(
+
+  let memberRooms: Room[] = [];
+  let publicRooms: Room[] = [];
+
+  const mergeAndCallback = () => {
+    // Combine rooms, removing duplicates (in case user is member of a public room)
+    const roomMap = new Map<string, Room>();
+
+    [...memberRooms, ...publicRooms].forEach((room) => {
+      roomMap.set(room.id, room);
+    });
+
+    const allRooms = Array.from(roomMap.values()).sort((a, b) => {
+      const timeA = a.lastMessageAt?.getTime() || 0;
+      const timeB = b.lastMessageAt?.getTime() || 0;
+      return timeB - timeA;
+    });
+
+    callback(allRooms);
+  };
+
+  // Subscribe to rooms where user is a member
+  const memberQuery = query(
     roomsRef,
     where('members', 'array-contains', userId),
     orderBy('lastMessageAt', 'desc')
   );
 
-  const unsubscribe = onSnapshot(
-    q,
+  const unsubscribeMember = onSnapshot(
+    memberQuery,
     (querySnapshot) => {
-      const rooms: Room[] = [];
+      memberRooms = [];
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        rooms.push({
+        memberRooms.push({
           id: doc.id,
           name: data.name,
           type: data.type,
@@ -142,14 +165,51 @@ export const subscribeToUserRooms = (
           lastMessage: data.lastMessage,
         });
       });
-      callback(rooms);
+      mergeAndCallback();
     },
     (error) => {
-      console.error('Error subscribing to rooms:', error);
+      console.error('Error subscribing to member rooms:', error);
     }
   );
 
-  return unsubscribe;
+  // Subscribe to all public rooms
+  const publicQuery = query(
+    roomsRef,
+    where('type', '==', 'public'),
+    orderBy('lastMessageAt', 'desc')
+  );
+
+  const unsubscribePublic = onSnapshot(
+    publicQuery,
+    (querySnapshot) => {
+      publicRooms = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        publicRooms.push({
+          id: doc.id,
+          name: data.name,
+          type: data.type,
+          members: data.members,
+          createdBy: data.createdBy,
+          createdAt: data.createdAt.toDate(),
+          description: data.description,
+          avatarUrl: data.avatarUrl,
+          lastMessageAt: data.lastMessageAt?.toDate(),
+          lastMessage: data.lastMessage,
+        });
+      });
+      mergeAndCallback();
+    },
+    (error) => {
+      console.error('Error subscribing to public rooms:', error);
+    }
+  );
+
+  // Return cleanup function that unsubscribes from both
+  return () => {
+    unsubscribeMember();
+    unsubscribePublic();
+  };
 };
 
 /**
