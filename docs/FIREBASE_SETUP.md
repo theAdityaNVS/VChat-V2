@@ -179,9 +179,10 @@ service cloud.firestore {
 
     // Rooms collection
     match /rooms/{roomId} {
-      // Allow read if user is a member (using resource.data for queries)
+      // Allow read if user is a member OR if room is public
       allow read: if isSignedIn() &&
-                     request.auth.uid in resource.data.members;
+                     (request.auth.uid in resource.data.members ||
+                      resource.data.type == 'public');
       allow create: if isSignedIn();
       allow update: if isSignedIn() &&
                       request.auth.uid in resource.data.members;
@@ -190,10 +191,14 @@ service cloud.firestore {
 
       // Messages subcollection
       match /messages/{messageId} {
+        // Allow read if user is member OR room is public
         allow read: if isSignedIn() &&
-                      request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
+                      (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members ||
+                       get(/databases/$(database)/documents/rooms/$(roomId)).data.type == 'public');
+        // Allow create if user is member OR room is public (anyone can send to public rooms)
         allow create: if isSignedIn() &&
-                        request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
+                        (request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members ||
+                         get(/databases/$(database)/documents/rooms/$(roomId)).data.type == 'public');
         allow update: if isSignedIn() &&
                         resource.data.senderId == request.auth.uid;
         allow delete: if isSignedIn() &&
