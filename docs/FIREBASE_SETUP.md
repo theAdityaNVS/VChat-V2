@@ -267,10 +267,9 @@ service firebase.storage {
     }
 
     // User avatars
-    match /avatars/{userId}.{ext} {
+    match /avatars/{fileName} {
       allow read: if isSignedIn();
       allow write: if isSignedIn() &&
-                     request.auth.uid == userId &&
                      isValidImage() &&
                      request.resource.size < 2 * 1024 * 1024; // 2MB limit
     }
