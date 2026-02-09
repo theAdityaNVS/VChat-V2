@@ -169,11 +169,6 @@ service cloud.firestore {
       return request.auth.uid == userId;
     }
 
-    function isRoomMember(roomId) {
-      return isSignedIn() &&
-             request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
-    }
-
     // Users collection
     match /users/{userId} {
       allow read: if isSignedIn();
@@ -184,16 +179,21 @@ service cloud.firestore {
 
     // Rooms collection
     match /rooms/{roomId} {
-      allow read: if isSignedIn() && isRoomMember(roomId);
+      // Allow read if user is a member (using resource.data for queries)
+      allow read: if isSignedIn() &&
+                     request.auth.uid in resource.data.members;
       allow create: if isSignedIn();
-      allow update: if isSignedIn() && isRoomMember(roomId);
+      allow update: if isSignedIn() &&
+                      request.auth.uid in resource.data.members;
       allow delete: if isSignedIn() &&
                       resource.data.createdBy == request.auth.uid;
 
       // Messages subcollection
       match /messages/{messageId} {
-        allow read: if isSignedIn() && isRoomMember(roomId);
-        allow create: if isSignedIn() && isRoomMember(roomId);
+        allow read: if isSignedIn() &&
+                      request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
+        allow create: if isSignedIn() &&
+                        request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.members;
         allow update: if isSignedIn() &&
                         resource.data.senderId == request.auth.uid;
         allow delete: if isSignedIn() &&
@@ -222,11 +222,13 @@ To apply these rules:
         ".write": "$userId === auth.uid"
       }
     },
-    "typing": {
+    "rooms": {
       "$roomId": {
-        "$userId": {
-          ".read": true,
-          ".write": "$userId === auth.uid"
+        "typing": {
+          "$userId": {
+            ".read": true,
+            ".write": "$userId === auth.uid"
+          }
         }
       }
     }
