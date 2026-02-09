@@ -29,11 +29,11 @@ export const sendMessage = async (
       roomId,
       senderId: userId,
       senderName: userName,
-      senderAvatar: avatarUrl,
+      senderAvatar: avatarUrl || null,
       content: messageData.content,
       type: messageData.type || 'text',
       createdAt: serverTimestamp(),
-      replyTo: messageData.replyTo,
+      replyTo: messageData.replyTo || null,
       isEdited: false,
       isDeleted: false,
     };
