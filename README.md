@@ -56,8 +56,9 @@ VChat V2 is a complete rewrite of the legacy VChat application, designed to prov
 ### Real-time Communication
 
 - **Chat Sync**: Firestore `onSnapshot` listeners
-- **Video/Audio**: LiveKit (SFU architecture)
-- **WebRTC**: PeerJS (fallback/learning implementation)
+- **Video/Audio**: WebRTC (Native peer-to-peer implementation)
+- **Signaling**: Firebase Firestore for SDP/ICE exchange
+- **Screen Sharing**: Native `getDisplayMedia` API
 
 ### Code Quality
 
@@ -156,39 +157,45 @@ VChat-V2/
 
 ## Development Roadmap
 
-VChat V2 is being built in **4 phases**:
+VChat V2 was built in **4 phases**:
 
-### ✅ Phase 1: Foundation & Authentication (Weeks 1-2)
+### ✅ Phase 1: Foundation & Authentication (Complete)
 
 - [x] Project scaffolding with Vite + React + TypeScript
 - [x] Tailwind CSS v4 configuration
 - [x] Firebase SDK integration
-- [ ] Authentication UI (Login/Signup)
-- [ ] Auth Context with session persistence
+- [x] Authentication UI (Login/Signup)
+- [x] Auth Context with session persistence
+- [x] Protected routes with RequireAuth
 
-### Phase 2: Core Features (Weeks 3-4)
+### ✅ Phase 2: Core Features (Complete)
 
-- [ ] Room management (create, list, join)
-- [ ] Real-time messaging with Firestore
-- [ ] User profiles and presence tracking
-- [ ] Message input with file upload
+- [x] Room management (create, list, join)
+- [x] Real-time messaging with Firestore
+- [x] User profiles and presence tracking
+- [x] Message input with file upload
+- [x] Room settings and member management
+- [x] Direct messaging
 
-### Phase 3: Enhanced Messaging (Weeks 5-6)
+### ✅ Phase 3: Enhanced Messaging (Complete)
 
-- [ ] Emoji reactions
-- [ ] Message threading (replies)
-- [ ] Edit/delete messages
-- [ ] Typing indicators
-- [ ] Search and filters
+- [x] Emoji reactions
+- [x] Message threading (replies)
+- [x] Edit/delete messages
+- [x] Typing indicators
+- [x] Image and file uploads
+- [x] Message preview for replies
 
-### Phase 4: Video Integration (Weeks 7-8)
+### ✅ Phase 4: Video Integration (Complete)
 
-- [ ] LiveKit integration
-- [ ] 1-on-1 video calls
-- [ ] Screen sharing
-- [ ] Call notifications and UI
+- [x] WebRTC video calling
+- [x] 1-on-1 video calls
+- [x] Screen sharing
+- [x] Call notifications and UI
+- [x] Audio/video controls
+- [x] Firebase signaling for WebRTC
 
-For detailed task breakdowns, see [docs/phase plans/](docs/phase%20plans/).
+For detailed implementation notes, see [docs/DEVELOPMENT_JOURNAL.md](docs/DEVELOPMENT_JOURNAL.md).
 
 ---
 
