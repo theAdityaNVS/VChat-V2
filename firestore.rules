@@ -108,5 +108,41 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow write: if isOwner(userId);
     }
+    
+    // Calls collection
+    match /calls/{callId} {
+      // Allow reading if user is caller or callee
+      allow read: if isAuthenticated() && 
+        (resource.data.callerId == request.auth.uid || 
+         resource.data.calleeId == request.auth.uid);
+      
+      // Allow creating if user is the caller
+      allow create: if isAuthenticated() && 
+        request.resource.data.callerId == request.auth.uid;
+      
+      // Allow updating if user is caller or callee (for status changes)
+      allow update: if isAuthenticated() && 
+        (resource.data.callerId == request.auth.uid || 
+         resource.data.calleeId == request.auth.uid);
+      
+      // Allow deleting if user is caller or callee
+      allow delete: if isAuthenticated() && 
+        (resource.data.callerId == request.auth.uid || 
+         resource.data.calleeId == request.auth.uid);
+      
+      // Signals subcollection (for WebRTC signaling)
+      match /signals/{signalId} {
+        // Allow reading if user is receiver
+        allow read: if isAuthenticated() && 
+          request.auth.uid == resource.data.receiverId;
+        
+        // Allow creating if user is sender
+        allow create: if isAuthenticated() && 
+          request.resource.data.senderId == request.auth.uid;
+        
+        // Allow deleting signals
+        allow delete: if isAuthenticated();
+      }
+    }
   }
 }

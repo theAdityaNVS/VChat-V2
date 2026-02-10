@@ -3,24 +3,31 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { useMessages } from '../hooks/useMessages';
 import { useRooms } from '../hooks/useRooms';
+import { useCall } from '../context/CallContext';
 import { setTypingStatus, subscribeToTyping, type TypingUser } from '../lib/typingService';
 import { uploadFile, isImageFile, type UploadProgress } from '../lib/uploadService';
 import { joinRoom } from '../lib/roomService';
+import { getUser } from '../lib/userService';
 import type { Message } from '../types/message';
+import type { UserDoc } from '../types/user';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
 import TypingIndicator from '../components/chat/TypingIndicator';
 import RoomSettings from '../components/chat/RoomSettings';
+import VideoCallModal from '../components/video/VideoCallModal';
 
 const ChatRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const { currentUser, userDoc } = useAuth();
   const { rooms } = useRooms();
+  const { initiateCall, currentCall } = useCall();
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [joiningError, setJoiningError] = useState<string | null>(null);
+  const [showVideoCall, setShowVideoCall] = useState(false);
+  const [otherUser, setOtherUser] = useState<UserDoc | null>(null);
 
   // Find the current room
   const currentRoom = rooms.find((room) => room.id === roomId);
@@ -74,6 +81,26 @@ const ChatRoom = () => {
     return () => unsubscribe();
   }, [roomId, currentUser]);
 
+  // Fetch other user for 1-on-1 video calls
+  useEffect(() => {
+    const fetchOtherUser = async () => {
+      if (!currentRoom || !currentUser || currentRoom.type !== 'direct') return;
+
+      // Find the other user in the room
+      const otherUserId = currentRoom.members.find((id) => id !== currentUser.uid);
+      if (otherUserId) {
+        try {
+          const user = await getUser(otherUserId);
+          setOtherUser(user);
+        } catch (error) {
+          console.error('Error fetching other user:', error);
+        }
+      }
+    };
+
+    fetchOtherUser();
+  }, [currentRoom, currentUser]);
+
   const handleSendMessage = async (content: string): Promise<boolean> => {
     const success = await sendMessage({
       content,
@@ -97,6 +124,37 @@ const ChatRoom = () => {
       setReplyingTo(message);
     }
   };
+
+  const handleInitiateVideoCall = async () => {
+    if (!roomId || !otherUser) {
+      console.error('Cannot initiate call: missing room or user info');
+      return;
+    }
+
+    try {
+      await initiateCall({
+        roomId,
+        calleeId: otherUser.uid,
+        calleeName: otherUser.displayName,
+        calleeAvatar: otherUser.photoURL,
+      });
+      setShowVideoCall(true);
+    } catch (error) {
+      console.error('Failed to initiate call:', error);
+    }
+  };
+
+  // Show video call modal when there's an active call
+  useEffect(() => {
+    if (currentCall && currentCall.status === 'connected') {
+      setShowVideoCall(true);
+    } else if (
+      currentCall &&
+      (currentCall.status === 'ended' || currentCall.status === 'rejected')
+    ) {
+      setShowVideoCall(false);
+    }
+  }, [currentCall]);
 
   const handleCancelReply = () => {
     setReplyingTo(null);
@@ -162,6 +220,23 @@ const ChatRoom = () => {
           </p>
         </div>
         <div className="flex items-center space-x-2">
+          {/* Video Call Button (only for direct/1-on-1 rooms) */}
+          {currentRoom?.type === 'direct' && otherUser && (
+            <button
+              onClick={handleInitiateVideoCall}
+              className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+              title="Start video call"
+            >
+              <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+                />
+              </svg>
+            </button>
+          )}
           <button
             onClick={() => setIsSettingsOpen(true)}
             className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
@@ -248,6 +323,15 @@ const ChatRoom = () => {
           room={currentRoom}
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
+
+      {/* Video Call Modal */}
+      {showVideoCall && currentCall && currentUser && (
+        <VideoCallModal
+          callId={currentCall.id}
+          isInitiator={currentCall.callerId === currentUser.uid}
+          onClose={() => setShowVideoCall(false)}
         />
       )}
     </div>
