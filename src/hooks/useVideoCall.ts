@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
 import { subscribeToSignals, sendOffer, sendAnswer, sendIceCandidate } from '../lib/callService';
 import type { CallSignal } from '../types/call';
+import type { MediaType } from '../types/call';
 
 // STUN servers for NAT traversal
 const ICE_SERVERS = {
@@ -11,6 +12,7 @@ interface UseVideoCallProps {
   callId: string | null;
   userId: string;
   isInitiator: boolean;
+  mediaType?: MediaType; // 'audio' or 'video'
   onRemoteStream?: (stream: MediaStream) => void;
   onCallEnded?: () => void;
 }
@@ -32,13 +34,14 @@ export const useVideoCall = ({
   callId,
   userId,
   isInitiator,
+  mediaType = 'video',
   onRemoteStream,
   onCallEnded,
 }: UseVideoCallProps): UseVideoCallReturn => {
   const [localStream, setLocalStream] = useState<MediaStream | null>(null);
   const [remoteStream, setRemoteStream] = useState<MediaStream | null>(null);
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
-  const [isVideoEnabled, setIsVideoEnabled] = useState(true);
+  const [isVideoEnabled, setIsVideoEnabled] = useState(mediaType === 'video');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
@@ -52,22 +55,39 @@ export const useVideoCall = ({
    */
   const initLocalStream = useCallback(async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: 1280, height: 720 },
+      console.log(`Requesting ${mediaType} media stream...`);
+
+      const constraints: MediaStreamConstraints = {
         audio: {
           echoCancellation: true,
           noiseSuppression: true,
           autoGainControl: true,
         },
+        video: mediaType === 'video' ? { width: 1280, height: 720 } : false,
+      };
+
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      console.log('Media stream acquired:', {
+        audioTracks: stream.getAudioTracks().length,
+        videoTracks: stream.getVideoTracks().length,
       });
 
       setLocalStream(stream);
       return stream;
     } catch (error) {
       console.error('Error accessing media devices:', error);
+      if (error instanceof Error) {
+        if (error.name === 'NotAllowedError') {
+          throw new Error(
+            'Camera/microphone permission denied. Please allow access and try again.'
+          );
+        } else if (error.name === 'NotFoundError') {
+          throw new Error('No camera/microphone found on this device.');
+        }
+      }
       throw new Error('Failed to access camera/microphone');
     }
-  }, []);
+  }, [mediaType]);
 
   /**
    * Initialize peer connection

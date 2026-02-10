@@ -2,6 +2,8 @@ export type CallStatus = 'idle' | 'calling' | 'ringing' | 'connected' | 'ended' 
 
 export type CallType = '1-on-1' | 'group';
 
+export type MediaType = 'audio' | 'video';
+
 export interface Call {
   id: string;
   roomId: string;
@@ -12,6 +14,7 @@ export interface Call {
   calleeName: string;
   calleeAvatar?: string;
   type: CallType;
+  mediaType: MediaType;
   status: CallStatus;
   startedAt?: Date;
   endedAt?: Date;
@@ -50,4 +53,5 @@ export interface CreateCallData {
   calleeId: string;
   calleeName: string;
   calleeAvatar?: string;
+  mediaType?: MediaType; // 'audio' or 'video', defaults to 'video'
 }
