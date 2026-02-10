@@ -6,9 +6,10 @@ interface RoomListProps {
   rooms: Room[];
   loading: boolean;
   onJoinRoom?: (roomId: string) => void;
+  onRequestJoin?: (roomId: string) => void;
 }
 
-const RoomList = ({ rooms, loading, onJoinRoom }: RoomListProps) => {
+const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) => {
   const { roomId } = useParams();
   const { currentUser } = useAuth();
 
@@ -39,6 +40,7 @@ const RoomList = ({ rooms, loading, onJoinRoom }: RoomListProps) => {
         const roomInitial = room.name[0].toUpperCase();
         const isMember = currentUser && room.members.includes(currentUser.uid);
         const isPublic = room.type === 'public';
+        const isPrivate = room.type === 'private';
 
         return (
           <div key={room.id} className="relative group">
@@ -69,6 +71,11 @@ const RoomList = ({ rooms, loading, onJoinRoom }: RoomListProps) => {
                   {isPublic && !isMember && (
                     <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
                       Public
+                    </span>
+                  )}
+                  {isPrivate && !isMember && (
+                    <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                      Private
                     </span>
                   )}
                 </div>
@@ -102,6 +109,18 @@ const RoomList = ({ rooms, loading, onJoinRoom }: RoomListProps) => {
                 className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:block px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700"
               >
                 Join
+              </button>
+            )}
+            {/* Request button for private rooms user is not a member of */}
+            {isPrivate && !isMember && onRequestJoin && (
+              <button
+                onClick={(e) => {
+                  e.preventDefault();
+                  onRequestJoin(room.id);
+                }}
+                className="absolute right-3 top-1/2 -translate-y-1/2 hidden group-hover:block px-3 py-1 bg-yellow-600 text-white text-xs rounded-md hover:bg-yellow-700"
+              >
+                Request
               </button>
             )}
           </div>

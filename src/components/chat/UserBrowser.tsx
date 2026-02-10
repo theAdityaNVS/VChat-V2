@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { getAllUsers } from '../../lib/userService';
 import { useAuth } from '../../hooks/useAuth';
 import type { UserDoc } from '../../types/user';
-import { StatusIndicator } from '../ui/StatusIndicator';
+import StatusIndicator from '../ui/StatusIndicator';
 
 interface UserBrowserProps {
   onSelectUser?: (user: UserDoc) => void;
@@ -148,7 +148,7 @@ const UserBrowser = ({
                       </div>
                     )}
                     <div className="absolute -bottom-0.5 -right-0.5">
-                      <StatusIndicator status={user.status || 'offline'} size="small" />
+                      <StatusIndicator status={user.status || 'offline'} size="sm" />
                     </div>
                   </div>
 

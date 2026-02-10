@@ -5,7 +5,7 @@ import { useRooms } from '../../hooks/useRooms';
 import RoomList from '../chat/RoomList';
 import CreateRoomModal from '../chat/CreateRoomModal';
 import UserBrowser from '../chat/UserBrowser';
-import { createDirectMessage, joinRoom } from '../../lib/roomService';
+import { createDirectMessage, joinRoom, requestToJoinRoom } from '../../lib/roomService';
 import type { UserDoc } from '../../types/user';
 
 const Sidebar = () => {
@@ -45,6 +45,18 @@ const Sidebar = () => {
       navigate(`/chat/${roomId}`);
     } catch (error) {
       console.error('Failed to join room:', error);
+    }
+  };
+
+  const handleRequestJoin = async (roomId: string) => {
+    if (!currentUser || !userDoc) return;
+
+    try {
+      await requestToJoinRoom(roomId, currentUser.uid, userDoc.displayName);
+      alert('Join request sent successfully!');
+    } catch (error) {
+      console.error('Failed to request join:', error);
+      alert(error instanceof Error ? error.message : 'Failed to send join request');
     }
   };
 
@@ -117,7 +129,12 @@ const Sidebar = () => {
                 </svg>
               </button>
             </div>
-            <RoomList rooms={regularRooms} loading={loading} onJoinRoom={handleJoinRoom} />
+            <RoomList
+              rooms={regularRooms}
+              loading={loading}
+              onJoinRoom={handleJoinRoom}
+              onRequestJoin={handleRequestJoin}
+            />
           </div>
         ) : (
           <div className="space-y-1">
@@ -141,7 +158,12 @@ const Sidebar = () => {
             {showUserBrowser ? (
               <UserBrowser onStartDirectMessage={handleStartDirectMessage} />
             ) : (
-              <RoomList rooms={directMessageRooms} loading={loading} onJoinRoom={handleJoinRoom} />
+              <RoomList
+                rooms={directMessageRooms}
+                loading={loading}
+                onJoinRoom={handleJoinRoom}
+                onRequestJoin={handleRequestJoin}
+              />
             )}
           </div>
         )}
