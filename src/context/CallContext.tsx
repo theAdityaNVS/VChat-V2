@@ -69,17 +69,16 @@ export function CallProvider({ children }: CallProviderProps) {
   }, [activeCallId]);
 
   const initiateCall = async (data: CreateCallData): Promise<string> => {
-    if (!currentUser || !userDoc) {
+    if (!currentUser) {
       throw new Error('User not authenticated');
     }
 
     try {
-      const callId = await createCallService(
-        currentUser.uid,
-        userDoc.displayName,
-        data,
-        userDoc.photoURL
-      );
+      // Use userDoc if available, otherwise fall back to currentUser
+      const displayName = userDoc?.displayName || currentUser.displayName || 'Anonymous';
+      const photoURL = userDoc?.photoURL || currentUser.photoURL || undefined;
+
+      const callId = await createCallService(currentUser.uid, displayName, data, photoURL);
 
       setActiveCallId(callId);
       return callId;
