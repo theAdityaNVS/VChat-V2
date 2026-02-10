@@ -1,15 +1,100 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import type { KeyboardEvent } from 'react';
 import type { Message } from '../../types/message';
+import type { UploadProgress } from '../../lib/uploadService';
 
 interface MessageInputProps {
   onSendMessage: (content: string) => Promise<boolean>;
-  onSendFile?: (file: File) => Promise<boolean>;
+  onSendFile?: (file: File, onProgress: (progress: UploadProgress) => void) => Promise<boolean>;
   disabled?: boolean;
   onTyping?: (isTyping: boolean) => void;
   replyingTo?: Message | null;
   onCancelReply?: () => void;
 }
+
+// Common emojis for the picker
+const EMOJI_LIST = [
+  '😀',
+  '😃',
+  '😄',
+  '😁',
+  '😅',
+  '😂',
+  '🤣',
+  '😊',
+  '😇',
+  '🙂',
+  '🙃',
+  '😉',
+  '😌',
+  '😍',
+  '🥰',
+  '😘',
+  '😗',
+  '😙',
+  '😚',
+  '😋',
+  '😛',
+  '😝',
+  '😜',
+  '🤪',
+  '🤨',
+  '🧐',
+  '🤓',
+  '😎',
+  '🥳',
+  '😏',
+  '😒',
+  '😞',
+  '😔',
+  '😟',
+  '😕',
+  '🙁',
+  '😣',
+  '😖',
+  '😫',
+  '😩',
+  '🥺',
+  '😢',
+  '😭',
+  '😤',
+  '😠',
+  '😡',
+  '🤬',
+  '🤯',
+  '😳',
+  '🥵',
+  '👍',
+  '👎',
+  '👏',
+  '🙌',
+  '👌',
+  '✌️',
+  '🤞',
+  '🤝',
+  '🙏',
+  '💪',
+  '❤️',
+  '🧡',
+  '💛',
+  '💚',
+  '💙',
+  '💜',
+  '🖤',
+  '🤍',
+  '🤎',
+  '💔',
+  '✨',
+  '⭐',
+  '🌟',
+  '💫',
+  '🔥',
+  '💯',
+  '✅',
+  '❌',
+  '⚡',
+  '🎉',
+];
 
 const MessageInput = ({
   onSendMessage,
@@ -23,9 +108,12 @@ const MessageInput = ({
   const [sending, setSending] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [filePreview, setFilePreview] = useState<string | null>(null);
+  const [uploadProgress, setUploadProgress] = useState<UploadProgress | null>(null);
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<number | null>(null);
+  const emojiPickerRef = useRef<HTMLDivElement>(null);
 
   // Clear typing timeout on unmount
   useEffect(() => {
@@ -39,6 +127,20 @@ const MessageInput = ({
       }
     };
   }, [onTyping]);
+
+  // Close emoji picker when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (emojiPickerRef.current && !emojiPickerRef.current.contains(event.target as Node)) {
+        setShowEmojiPicker(false);
+      }
+    };
+
+    if (showEmojiPicker) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [showEmojiPicker]);
 
   const handleTyping = useCallback(() => {
     if (!onTyping) return;
@@ -131,12 +233,38 @@ const MessageInput = ({
     if (!selectedFile || !onSendFile || sending) return;
 
     setSending(true);
-    const success = await onSendFile(selectedFile);
+    setUploadProgress({ progress: 0, status: 'uploading' });
+
+    const success = await onSendFile(selectedFile, (progress) => {
+      setUploadProgress(progress);
+    });
 
     if (success) {
       handleRemoveFile();
+      setUploadProgress(null);
+    } else {
+      setUploadProgress(null);
     }
     setSending(false);
+  };
+
+  const handleEmojiClick = (emoji: string) => {
+    const textarea = textareaRef.current;
+    if (!textarea) return;
+
+    const start = textarea.selectionStart;
+    const end = textarea.selectionEnd;
+    const newMessage = message.substring(0, start) + emoji + message.substring(end);
+
+    setMessage(newMessage);
+    setShowEmojiPicker(false);
+
+    // Set cursor position after emoji
+    setTimeout(() => {
+      textarea.focus();
+      const newCursorPos = start + emoji.length;
+      textarea.setSelectionRange(newCursorPos, newCursorPos);
+    }, 0);
   };
 
   return (
@@ -178,6 +306,7 @@ const MessageInput = ({
               onClick={handleRemoveFile}
               className="text-gray-500 hover:text-red-600"
               title="Remove file"
+              disabled={sending}
             >
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
@@ -204,6 +333,31 @@ const MessageInput = ({
               <span>{selectedFile.name}</span>
             </div>
           )}
+
+          {/* Upload Progress Bar */}
+          {uploadProgress && uploadProgress.status === 'uploading' && (
+            <div className="mt-3">
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-xs text-gray-600">Uploading...</span>
+                <span className="text-xs font-medium text-blue-600">
+                  {Math.round(uploadProgress.progress)}%
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                <div
+                  className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                  style={{ width: `${uploadProgress.progress}%` }}
+                />
+              </div>
+            </div>
+          )}
+
+          {uploadProgress && uploadProgress.status === 'error' && (
+            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+              Error: {uploadProgress.error || 'Upload failed'}
+            </div>
+          )}
+
           <button
             onClick={handleFileUpload}
             disabled={sending}
@@ -240,22 +394,45 @@ const MessageInput = ({
           </svg>
         </button>
 
-        {/* Emoji Button (placeholder for future) */}
-        <button
-          type="button"
-          disabled={disabled || !!selectedFile}
-          className="flex-shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
-          aria-label="Add emoji"
-        >
-          <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-            />
-          </svg>
-        </button>
+        {/* Emoji Button */}
+        <div className="relative" ref={emojiPickerRef}>
+          <button
+            type="button"
+            onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+            disabled={disabled || !!selectedFile}
+            className="flex-shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+            aria-label="Add emoji"
+          >
+            <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
+            </svg>
+          </button>
+
+          {/* Emoji Picker Dropdown */}
+          {showEmojiPicker && (
+            <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-300 rounded-lg shadow-lg p-3 z-10">
+              <div className="text-xs font-medium text-gray-700 mb-2">Pick an emoji</div>
+              <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
+                {EMOJI_LIST.map((emoji, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => handleEmojiClick(emoji)}
+                    className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
+                    title={emoji}
+                  >
+                    {emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
 
         {/* Message Input */}
         <textarea
