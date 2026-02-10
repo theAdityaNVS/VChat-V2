@@ -15,7 +15,7 @@ import {
   arrayRemove,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
-import type { Room, CreateRoomData } from '../types/room';
+import type { Room, CreateRoomData, RoomType } from '../types/room';
 
 /**
  * Create a new room
@@ -265,5 +265,189 @@ export const deleteRoom = async (roomId: string): Promise<void> => {
   } catch (error) {
     console.error('Error deleting room:', error);
     throw new Error('Failed to delete room');
+  }
+};
+
+/**
+ * Join a public room (adds current user to members)
+ */
+export const joinRoom = async (roomId: string, userId: string): Promise<void> => {
+  try {
+    const roomRef = doc(db, 'rooms', roomId);
+    const roomSnap = await getDoc(roomRef);
+
+    if (!roomSnap.exists()) {
+      throw new Error('Room not found');
+    }
+
+    const roomData = roomSnap.data();
+
+    // Only allow joining public rooms
+    if (roomData.type !== 'public') {
+      throw new Error('Can only join public rooms');
+    }
+
+    // Add user to members
+    await updateDoc(roomRef, {
+      members: arrayUnion(userId),
+    });
+  } catch (error) {
+    console.error('Error joining room:', error);
+    throw error;
+  }
+};
+
+/**
+ * Create or get a direct message room between two users
+ */
+export const createDirectMessage = async (
+  currentUserId: string,
+  otherUserId: string,
+  otherUserName: string
+): Promise<string> => {
+  try {
+    // Check if a DM room already exists between these users
+    const roomsRef = collection(db, 'rooms');
+    const q = query(
+      roomsRef,
+      where('type', '==', 'direct'),
+      where('members', 'array-contains', currentUserId)
+    );
+
+    const querySnapshot = await getDocs(q);
+    let existingRoomId: string | null = null;
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      if (data.members.includes(otherUserId) && data.members.length === 2) {
+        existingRoomId = doc.id;
+      }
+    });
+
+    if (existingRoomId) {
+      return existingRoomId;
+    }
+
+    // Create new DM room
+    const newRoom = {
+      name: `DM with ${otherUserName}`,
+      type: 'direct' as RoomType,
+      members: [currentUserId, otherUserId],
+      createdBy: currentUserId,
+      createdAt: Timestamp.now(),
+      description: '',
+      lastMessageAt: Timestamp.now(),
+    };
+
+    const docRef = await addDoc(roomsRef, newRoom);
+    return docRef.id;
+  } catch (error) {
+    console.error('Error creating direct message:', error);
+    throw new Error('Failed to create direct message');
+  }
+};
+
+/**
+ * Request to join a private room
+ */
+export const requestToJoinRoom = async (
+  roomId: string,
+  userId: string,
+  userName: string
+): Promise<void> => {
+  try {
+    const requestsRef = collection(db, 'rooms', roomId, 'joinRequests');
+    const requestDocRef = doc(requestsRef, userId);
+
+    // Check if request already exists
+    const requestSnap = await getDoc(requestDocRef);
+    if (requestSnap.exists()) {
+      throw new Error('Join request already sent');
+    }
+
+    await addDoc(requestsRef, {
+      userId,
+      userName,
+      status: 'pending',
+      requestedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error requesting to join room:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get pending join requests for a room
+ */
+export const getRoomJoinRequests = async (roomId: string) => {
+  try {
+    const requestsRef = collection(db, 'rooms', roomId, 'joinRequests');
+    const q = query(requestsRef, where('status', '==', 'pending'), orderBy('requestedAt', 'desc'));
+
+    const querySnapshot = await getDocs(q);
+    const requests: Array<{
+      id: string;
+      userId: string;
+      userName: string;
+      status: string;
+      requestedAt: Date;
+    }> = [];
+
+    querySnapshot.forEach((doc) => {
+      const data = doc.data();
+      requests.push({
+        id: doc.id,
+        userId: data.userId,
+        userName: data.userName,
+        status: data.status,
+        requestedAt: data.requestedAt.toDate(),
+      });
+    });
+
+    return requests;
+  } catch (error) {
+    console.error('Error getting join requests:', error);
+    throw new Error('Failed to get join requests');
+  }
+};
+
+/**
+ * Approve a join request
+ */
+export const approveJoinRequest = async (
+  roomId: string,
+  requestId: string,
+  userId: string
+): Promise<void> => {
+  try {
+    // Add user to room members
+    await addRoomMember(roomId, userId);
+
+    // Update request status
+    const requestRef = doc(db, 'rooms', roomId, 'joinRequests', requestId);
+    await updateDoc(requestRef, {
+      status: 'approved',
+      approvedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error approving join request:', error);
+    throw new Error('Failed to approve join request');
+  }
+};
+
+/**
+ * Reject a join request
+ */
+export const rejectJoinRequest = async (roomId: string, requestId: string): Promise<void> => {
+  try {
+    const requestRef = doc(db, 'rooms', roomId, 'joinRequests', requestId);
+    await updateDoc(requestRef, {
+      status: 'rejected',
+      rejectedAt: Timestamp.now(),
+    });
+  } catch (error) {
+    console.error('Error rejecting join request:', error);
+    throw new Error('Failed to reject join request');
   }
 };

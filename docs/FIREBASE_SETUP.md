@@ -171,6 +171,7 @@ service cloud.firestore {
 
     // Users collection
     match /users/{userId} {
+      // Anyone can read user profiles (for discovery and direct messages)
       allow read: if isSignedIn();
       allow create: if isSignedIn() && isOwner(userId);
       allow update: if isSignedIn() && isOwner(userId);

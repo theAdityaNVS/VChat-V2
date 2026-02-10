@@ -9,6 +9,7 @@ import type { Message } from '../types/message';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
 import TypingIndicator from '../components/chat/TypingIndicator';
+import RoomSettings from '../components/chat/RoomSettings';
 
 const ChatRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -18,6 +19,7 @@ const ChatRoom = () => {
   const { rooms } = useRooms();
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   // Find the current room
   const currentRoom = rooms.find((room) => room.id === roomId);
@@ -122,6 +124,7 @@ const ChatRoom = () => {
         </div>
         <div className="flex items-center space-x-2">
           <button
+            onClick={() => setIsSettingsOpen(true)}
             className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
             aria-label="Room settings"
           >
@@ -164,6 +167,15 @@ const ChatRoom = () => {
         replyingTo={replyingTo}
         onCancelReply={handleCancelReply}
       />
+
+      {/* Room Settings Modal */}
+      {currentRoom && (
+        <RoomSettings
+          room={currentRoom}
+          isOpen={isSettingsOpen}
+          onClose={() => setIsSettingsOpen(false)}
+        />
+      )}
     </div>
   );
 };
