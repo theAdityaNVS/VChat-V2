@@ -165,10 +165,13 @@ export const subscribeToUserRooms = (
           lastMessage: data.lastMessage,
         });
       });
+      console.log('Member rooms:', memberRooms.length, memberRooms);
       mergeAndCallback();
     },
     (error) => {
       console.error('Error subscribing to member rooms:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
     }
   );
 
@@ -198,10 +201,13 @@ export const subscribeToUserRooms = (
           lastMessage: data.lastMessage,
         });
       });
+      console.log('Public rooms:', publicRooms.length, publicRooms);
       mergeAndCallback();
     },
     (error) => {
       console.error('Error subscribing to public rooms:', error);
+      console.error('Error code:', error.code);
+      console.error('Error message:', error.message);
     }
   );
 
