@@ -9,6 +9,7 @@ import {
   serverTimestamp,
   getDocs,
   deleteDoc,
+  getDoc,
 } from 'firebase/firestore';
 import { db } from '../config/firebase';
 import type {
@@ -40,6 +41,7 @@ export const createCall = async (
       calleeName: data.calleeName,
       calleeAvatar: data.calleeAvatar || null,
       type: '1-on-1',
+      mediaType: data.mediaType || 'video',
       status: 'ringing',
       createdAt: serverTimestamp(),
     };
@@ -97,6 +99,7 @@ export const subscribeToCall = (
           calleeName: data.calleeName,
           calleeAvatar: data.calleeAvatar,
           type: data.type,
+          mediaType: data.mediaType || 'video',
           status: data.status,
           startedAt: data.startedAt?.toDate(),
           endedAt: data.endedAt?.toDate(),
@@ -140,6 +143,7 @@ export const subscribeToIncomingCalls = (
           calleeName: data.calleeName,
           calleeAvatar: data.calleeAvatar,
           type: data.type,
+          mediaType: data.mediaType || 'video',
           status: data.status,
           startedAt: data.startedAt?.toDate(),
           endedAt: data.endedAt?.toDate(),
@@ -280,12 +284,25 @@ export const endCall = async (callId: string): Promise<void> => {
     // Optional: Clean up signals after a delay
     setTimeout(async () => {
       try {
-        const signalsRef = collection(db, 'calls', callId, 'signals');
-        const signalsSnapshot = await getDocs(signalsRef);
-        const deletePromises = signalsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
-        await Promise.all(deletePromises);
+        // Check if call document still exists before cleaning up
+        const callRef = doc(db, 'calls', callId);
+        const callSnap = await getDoc(callRef);
+
+        if (callSnap.exists()) {
+          const signalsRef = collection(db, 'calls', callId, 'signals');
+          const signalsSnapshot = await getDocs(signalsRef);
+
+          if (!signalsSnapshot.empty) {
+            const deletePromises = signalsSnapshot.docs.map((doc) => deleteDoc(doc.ref));
+            await Promise.all(deletePromises);
+          }
+        }
       } catch (error) {
-        console.error('Error cleaning up signals:', error);
+        // Silently ignore cleanup errors as they're non-critical
+        console.debug(
+          'Signal cleanup skipped:',
+          error instanceof Error ? error.message : 'Unknown error'
+        );
       }
     }, 5000);
   } catch (error) {

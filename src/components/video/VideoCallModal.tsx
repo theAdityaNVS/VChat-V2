@@ -16,6 +16,8 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
+  const isAudioOnly = currentCall?.mediaType === 'audio';
+
   const {
     localStream,
     remoteStream,
@@ -31,6 +33,7 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     callId,
     userId: currentUser?.uid || '',
     isInitiator,
+    mediaType: currentCall?.mediaType || 'video',
     onCallEnded: () => {
       endCall();
       onClose();
@@ -69,9 +72,11 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   const getCallStatusText = () => {
     if (!currentCall) return 'Connecting...';
 
+    const callType = isAudioOnly ? 'call' : 'video call';
+
     switch (currentCall.status) {
       case 'ringing':
-        return isInitiator ? 'Calling...' : 'Incoming call...';
+        return isInitiator ? `Calling...` : `Incoming ${callType}...`;
       case 'connected':
         return 'Connected';
       case 'ended':
@@ -208,6 +213,7 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
             onToggleVideo={toggleVideo}
             onToggleScreenShare={toggleScreenShare}
             onEndCall={handleEndCall}
+            hideVideoControls={isAudioOnly}
           />
         </div>
       </div>

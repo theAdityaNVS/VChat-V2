@@ -6,6 +6,7 @@ interface CallControlsProps {
   onToggleVideo: () => void;
   onToggleScreenShare: () => void;
   onEndCall: () => void;
+  hideVideoControls?: boolean; // Hide video/screen share controls for audio-only calls
 }
 
 const CallControls = ({
@@ -16,6 +17,7 @@ const CallControls = ({
   onToggleVideo,
   onToggleScreenShare,
   onEndCall,
+  hideVideoControls = false,
 }: CallControlsProps) => {
   return (
     <div className="flex items-center justify-center gap-4 p-4 bg-gray-800 rounded-lg">
@@ -57,55 +59,59 @@ const CallControls = ({
       </button>
 
       {/* Camera Toggle */}
-      <button
-        onClick={onToggleVideo}
-        className={`p-4 rounded-full transition-colors ${
-          isVideoEnabled
-            ? 'bg-gray-700 hover:bg-gray-600 text-white'
-            : 'bg-red-600 hover:bg-red-700 text-white'
-        }`}
-        title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
-      >
-        {isVideoEnabled ? (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
-            />
-          </svg>
-        ) : (
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
-            />
-          </svg>
-        )}
-      </button>
+      {!hideVideoControls && (
+        <button
+          onClick={onToggleVideo}
+          className={`p-4 rounded-full transition-colors ${
+            isVideoEnabled
+              ? 'bg-gray-700 hover:bg-gray-600 text-white'
+              : 'bg-red-600 hover:bg-red-700 text-white'
+          }`}
+          title={isVideoEnabled ? 'Turn off camera' : 'Turn on camera'}
+        >
+          {isVideoEnabled ? (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"
+              />
+            </svg>
+          ) : (
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"
+              />
+            </svg>
+          )}
+        </button>
+      )}
 
       {/* Screen Share Toggle */}
-      <button
-        onClick={onToggleScreenShare}
-        className={`p-4 rounded-full transition-colors ${
-          isScreenSharing
-            ? 'bg-blue-600 hover:bg-blue-700 text-white'
-            : 'bg-gray-700 hover:bg-gray-600 text-white'
-        }`}
-        title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
-      >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={2}
-            d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-          />
-        </svg>
-      </button>
+      {!hideVideoControls && (
+        <button
+          onClick={onToggleScreenShare}
+          className={`p-4 rounded-full transition-colors ${
+            isScreenSharing
+              ? 'bg-blue-600 hover:bg-blue-700 text-white'
+              : 'bg-gray-700 hover:bg-gray-600 text-white'
+          }`}
+          title={isScreenSharing ? 'Stop sharing' : 'Share screen'}
+        >
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
+            />
+          </svg>
+        </button>
+      )}
 
       {/* End Call */}
       <button
