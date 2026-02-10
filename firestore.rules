@@ -32,9 +32,12 @@ service cloud.firestore {
     match /rooms/{roomId} {
       // Allow reading if:
       // - Room is public, OR
-      // - User is a member of the room
+      // - User is a member of the room, OR
+      // - User created the room
       allow read: if isAuthenticated() && 
-        (resource.data.type == 'public' || isRoomMember(resource.data));
+        (resource.data.type == 'public' || 
+         isRoomMember(resource.data) || 
+         isRoomAdmin(resource.data));
       
       // Allow creating rooms if authenticated
       allow create: if isAuthenticated() && 
