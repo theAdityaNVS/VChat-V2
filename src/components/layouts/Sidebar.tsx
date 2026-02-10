@@ -4,6 +4,9 @@ import { useAuth } from '../../hooks/useAuth';
 import { useRooms } from '../../hooks/useRooms';
 import RoomList from '../chat/RoomList';
 import CreateRoomModal from '../chat/CreateRoomModal';
+import UserBrowser from '../chat/UserBrowser';
+import { createDirectMessage, joinRoom } from '../../lib/roomService';
+import type { UserDoc } from '../../types/user';
 
 const Sidebar = () => {
   const { currentUser, userDoc, logout } = useAuth();
@@ -11,6 +14,7 @@ const Sidebar = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'rooms' | 'direct'>('rooms');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [showUserBrowser, setShowUserBrowser] = useState(false);
 
   const handleLogout = async () => {
     try {
@@ -21,8 +25,35 @@ const Sidebar = () => {
     }
   };
 
+  const handleStartDirectMessage = async (user: UserDoc) => {
+    if (!currentUser) return;
+
+    try {
+      const roomId = await createDirectMessage(currentUser.uid, user.uid, user.displayName);
+      setShowUserBrowser(false);
+      navigate(`/chat/${roomId}`);
+    } catch (error) {
+      console.error('Failed to start direct message:', error);
+    }
+  };
+
+  const handleJoinRoom = async (roomId: string) => {
+    if (!currentUser) return;
+
+    try {
+      await joinRoom(roomId, currentUser.uid);
+      navigate(`/chat/${roomId}`);
+    } catch (error) {
+      console.error('Failed to join room:', error);
+    }
+  };
+
   const displayName = userDoc?.displayName || currentUser?.email || 'User';
   const initial = displayName[0].toUpperCase();
+
+  // Filter rooms based on active tab
+  const regularRooms = rooms.filter((room) => room.type !== 'direct');
+  const directMessageRooms = rooms.filter((room) => room.type === 'direct');
 
   return (
     <div className="flex h-full flex-col">
@@ -86,15 +117,32 @@ const Sidebar = () => {
                 </svg>
               </button>
             </div>
-            <RoomList rooms={rooms} loading={loading} />
+            <RoomList rooms={regularRooms} loading={loading} onJoinRoom={handleJoinRoom} />
           </div>
         ) : (
           <div className="space-y-1">
-            <p className="px-3 py-2 text-xs font-semibold text-gray-500 uppercase">
-              Direct Messages
-            </p>
-            {/* DM list will be populated here */}
-            <div className="px-3 py-2 text-sm text-gray-500 text-center">No conversations yet.</div>
+            <div className="flex items-center justify-between px-3 py-2">
+              <p className="text-xs font-semibold text-gray-500 uppercase">Direct Messages</p>
+              <button
+                onClick={() => setShowUserBrowser(!showUserBrowser)}
+                className="rounded-md p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700"
+                aria-label="New message"
+              >
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth={2}
+                    d="M12 4v16m8-8H4"
+                  />
+                </svg>
+              </button>
+            </div>
+            {showUserBrowser ? (
+              <UserBrowser onStartDirectMessage={handleStartDirectMessage} />
+            ) : (
+              <RoomList rooms={directMessageRooms} loading={loading} onJoinRoom={handleJoinRoom} />
+            )}
           </div>
         )}
       </div>
