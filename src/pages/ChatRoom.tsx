@@ -126,15 +126,15 @@ const ChatRoom = () => {
     setTypingStatus(roomId, currentUser.uid, userName, isTyping);
   };
 
-  const handleSendFile = async (file: File): Promise<boolean> => {
+  const handleSendFile = async (
+    file: File,
+    onProgress: (progress: UploadProgress) => void
+  ): Promise<boolean> => {
     if (!roomId) return false;
 
     try {
       // Upload file and get download URL
-      const downloadURL = await uploadFile(file, roomId, (progress: UploadProgress) => {
-        console.log('Upload progress:', progress);
-        // TODO: Show upload progress in UI
-      });
+      const downloadURL = await uploadFile(file, roomId, onProgress);
 
       // Send message with the file URL
       const messageType = isImageFile(file) ? 'image' : 'file';
