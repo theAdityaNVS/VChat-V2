@@ -91,7 +91,12 @@ export const subscribeToMessages = (
       callback(messages.reverse());
     },
     (error) => {
-      console.error('Error subscribing to messages:', error);
+      // Only log permission errors at warning level since they're expected when not a member
+      if (error.code === 'permission-denied') {
+        console.warn('Permission denied for messages. User may not be a member of this room yet.');
+      } else {
+        console.error('Error subscribing to messages:', error);
+      }
     }
   );
 

@@ -5,6 +5,7 @@ import { useMessages } from '../hooks/useMessages';
 import { useRooms } from '../hooks/useRooms';
 import { setTypingStatus, subscribeToTyping, type TypingUser } from '../lib/typingService';
 import { uploadFile, isImageFile, type UploadProgress } from '../lib/uploadService';
+import { joinRoom } from '../lib/roomService';
 import type { Message } from '../types/message';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
@@ -14,15 +15,53 @@ import RoomSettings from '../components/chat/RoomSettings';
 const ChatRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
   const { currentUser, userDoc } = useAuth();
-  const { messages, loading, sendMessage, toggleReaction, editMessage, deleteMessage } =
-    useMessages(roomId);
   const { rooms } = useRooms();
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [replyingTo, setReplyingTo] = useState<Message | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [joiningError, setJoiningError] = useState<string | null>(null);
 
   // Find the current room
   const currentRoom = rooms.find((room) => room.id === roomId);
+
+  // Check if user is a member of the room
+  const isMember =
+    currentRoom && currentUser ? currentRoom.members.includes(currentUser.uid) : false;
+
+  // Determine the effective roomId to pass to useMessages
+  // Only pass roomId if user is a member, otherwise pass undefined to prevent subscription
+  const effectiveRoomId = isMember ? roomId : undefined;
+
+  const { messages, loading, sendMessage, toggleReaction, editMessage, deleteMessage } =
+    useMessages(effectiveRoomId);
+
+  // Auto-join public rooms
+  useEffect(() => {
+    const autoJoinPublicRoom = async () => {
+      if (!roomId || !currentUser || !currentRoom) return;
+
+      // If user is already a member, do nothing
+      if (isMember) return;
+
+      // If it's a public room and user is not a member, join automatically
+      if (currentRoom.type === 'public') {
+        setIsJoining(true);
+        setJoiningError(null);
+        try {
+          await joinRoom(roomId, currentUser.uid);
+          // The rooms subscription will automatically update and set isMember to true
+        } catch (error) {
+          console.error('Error auto-joining public room:', error);
+          setJoiningError(error instanceof Error ? error.message : 'Failed to join room');
+        } finally {
+          setIsJoining(false);
+        }
+      }
+    };
+
+    autoJoinPublicRoom();
+  }, [roomId, currentUser, currentRoom, isMember]);
 
   // Subscribe to typing indicators
   useEffect(() => {
@@ -146,27 +185,62 @@ const ChatRoom = () => {
         </div>
       </div>
 
-      {/* Messages Area */}
-      <MessageList
-        messages={messages}
-        loading={loading}
-        onReaction={handleReaction}
-        onEdit={handleEdit}
-        onDelete={handleDelete}
-        onReply={handleReply}
-      />
+      {/* Joining Room State */}
+      {isJoining && (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="text-center">
+            <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
+            <p className="text-gray-600">Joining room...</p>
+          </div>
+        </div>
+      )}
 
-      {/* Typing Indicator */}
-      <TypingIndicator typingUsers={typingUsers} />
+      {/* Joining Error State */}
+      {!isJoining && joiningError && (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="rounded-lg bg-red-50 p-6 text-center">
+            <p className="text-red-600">{joiningError}</p>
+          </div>
+        </div>
+      )}
 
-      {/* Message Input */}
-      <MessageInput
-        onSendMessage={handleSendMessage}
-        onSendFile={handleSendFile}
-        onTyping={handleTyping}
-        replyingTo={replyingTo}
-        onCancelReply={handleCancelReply}
-      />
+      {/* Not a Member State (for private rooms) */}
+      {!isJoining && !joiningError && !isMember && currentRoom && currentRoom.type !== 'public' && (
+        <div className="flex flex-1 items-center justify-center">
+          <div className="rounded-lg bg-yellow-50 p-6 text-center">
+            <p className="text-yellow-800">You are not a member of this room.</p>
+            <p className="mt-2 text-sm text-yellow-600">
+              Request access from the room admin to join.
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Messages Area - Only show when user is a member */}
+      {!isJoining && !joiningError && isMember && (
+        <>
+          <MessageList
+            messages={messages}
+            loading={loading}
+            onReaction={handleReaction}
+            onEdit={handleEdit}
+            onDelete={handleDelete}
+            onReply={handleReply}
+          />
+
+          {/* Typing Indicator */}
+          <TypingIndicator typingUsers={typingUsers} />
+
+          {/* Message Input */}
+          <MessageInput
+            onSendMessage={handleSendMessage}
+            onSendFile={handleSendFile}
+            onTyping={handleTyping}
+            replyingTo={replyingTo}
+            onCancelReply={handleCancelReply}
+          />
+        </>
+      )}
 
       {/* Room Settings Modal */}
       {currentRoom && (
