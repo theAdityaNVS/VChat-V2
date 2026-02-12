@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCall } from '../../context/CallContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useVideoCall } from '../../hooks/useVideoCall';
@@ -16,6 +16,7 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   const { currentCall, endCall } = useCall();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  const [isRemoteVideoActive, setIsRemoteVideoActive] = useState(true);
 
   const isAudioOnly = currentCall?.mediaType === 'audio';
   console.log(
@@ -58,8 +59,31 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+
+      // Monitor remote video track state
+      const videoTrack = remoteStream.getVideoTracks()[0];
+      if (videoTrack) {
+        setIsRemoteVideoActive(videoTrack.enabled);
+
+        // Listen for track enabled/disabled events
+        videoTrack.addEventListener('mute', () => setIsRemoteVideoActive(false));
+        videoTrack.addEventListener('unmute', () => setIsRemoteVideoActive(true));
+
+        // Check if track has an enabled property change (some browsers)
+        const checkInterval = setInterval(() => {
+          if (videoTrack.enabled !== isRemoteVideoActive) {
+            setIsRemoteVideoActive(videoTrack.enabled);
+          }
+        }, 500);
+
+        return () => {
+          videoTrack.removeEventListener('mute', () => setIsRemoteVideoActive(false));
+          videoTrack.removeEventListener('unmute', () => setIsRemoteVideoActive(true));
+          clearInterval(checkInterval);
+        };
+      }
     }
-  }, [remoteStream]);
+  }, [remoteStream, isRemoteVideoActive]);
 
   // Start call if initiator (only once when status becomes ringing)
   useEffect(() => {
@@ -105,6 +129,29 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
       : currentCall.callerName;
   };
 
+  const getParticipantAvatar = () => {
+    if (!currentCall || !currentUser) return undefined;
+    return currentCall.callerId === currentUser.uid
+      ? currentCall.calleeAvatar
+      : currentCall.callerAvatar;
+  };
+
+  const getCurrentUserAvatar = () => {
+    if (!currentCall || !currentUser) return undefined;
+    return currentCall.callerId === currentUser.uid
+      ? currentCall.callerAvatar
+      : currentCall.calleeAvatar;
+  };
+
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map((n) => n[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
   return (
     <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
       <div className="w-full h-full flex flex-col">
@@ -132,51 +179,63 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
         {/* Video Area */}
         <div className="flex-1 relative bg-gray-900">
           {/* Remote Video (main) */}
-          <div className="w-full h-full flex items-center justify-center">
-            {remoteStream ? (
-              <video
-                ref={remoteVideoRef}
-                autoPlay
-                playsInline
-                className="w-full h-full object-contain"
-              />
-            ) : (
-              <div className="flex flex-col items-center justify-center text-white">
-                <div className="w-32 h-32 rounded-full bg-gray-700 flex items-center justify-center mb-4">
-                  <svg className="w-16 h-16" fill="currentColor" viewBox="0 0 20 20">
-                    <path
-                      fillRule="evenodd"
-                      d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </div>
-                <p className="text-lg">Waiting for {getParticipantName()}...</p>
+          <div className="w-full h-full flex items-center justify-center relative">
+            <video
+              ref={remoteVideoRef}
+              autoPlay
+              playsInline
+              className={`w-full h-full object-contain ${!remoteStream || !isRemoteVideoActive || isAudioOnly ? 'hidden' : ''}`}
+            />
+            {(!remoteStream || !isRemoteVideoActive || isAudioOnly) && (
+              <div className="absolute inset-0 flex flex-col items-center justify-center text-white bg-gradient-to-br from-gray-800 to-gray-900">
+                {getParticipantAvatar() ? (
+                  <img
+                    src={getParticipantAvatar()}
+                    alt={getParticipantName()}
+                    className="w-32 h-32 rounded-full mb-4 object-cover border-4 border-gray-700"
+                  />
+                ) : (
+                  <div className="w-32 h-32 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center mb-4 text-4xl font-bold border-4 border-gray-700">
+                    {getInitials(getParticipantName())}
+                  </div>
+                )}
+                <p className="text-lg">
+                  {!remoteStream
+                    ? `Waiting for ${getParticipantName()}...`
+                    : isAudioOnly
+                      ? `Audio call with ${getParticipantName()}`
+                      : `${getParticipantName()}'s camera is off`}
+                </p>
               </div>
             )}
           </div>
 
           {/* Local Video (picture-in-picture) */}
           <div className="absolute top-4 right-4 w-64 h-48 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
-            {localStream ? (
+            <div className="relative w-full h-full">
               <video
                 ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className="w-full h-full object-cover mirror"
+                className={`w-full h-full object-cover mirror ${!localStream || !isVideoEnabled || isAudioOnly ? 'hidden' : ''}`}
               />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-white">
-                <svg className="w-12 h-12" fill="currentColor" viewBox="0 0 20 20">
-                  <path
-                    fillRule="evenodd"
-                    d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </div>
-            )}
+              {(!localStream || !isVideoEnabled || isAudioOnly) && (
+                <div className="absolute inset-0 flex items-center justify-center text-white bg-gradient-to-br from-gray-700 to-gray-800">
+                  {getCurrentUserAvatar() ? (
+                    <img
+                      src={getCurrentUserAvatar()}
+                      alt="You"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-gray-600"
+                    />
+                  ) : (
+                    <div className="w-20 h-20 rounded-full bg-gradient-to-br from-green-500 to-teal-600 flex items-center justify-center text-2xl font-bold border-2 border-gray-600">
+                      {currentUser?.displayName ? getInitials(currentUser.displayName) : 'ME'}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
 
             {/* Status indicators */}
             <div className="absolute bottom-2 left-2 flex gap-2">
