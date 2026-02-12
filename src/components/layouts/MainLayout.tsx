@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import Sidebar from './Sidebar';
+import IncomingCallModal from '../video/IncomingCallModal';
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -11,6 +12,9 @@ const MainLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100">
+      {/* Incoming Call Modal */}
+      <IncomingCallModal />
+
       {/* Sidebar */}
       <div
         className={`${
@@ -23,7 +27,7 @@ const MainLayout = () => {
       {/* Overlay for mobile */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+          className="fixed inset-0 z-20 bg-gray-600 bg-opacity-20 lg:hidden"
           onClick={toggleSidebar}
         />
       )}
