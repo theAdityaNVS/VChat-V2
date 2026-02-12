@@ -9,6 +9,7 @@ import MainLayout from './components/layouts/MainLayout';
 import ChatWelcome from './pages/ChatWelcome';
 import ChatRoom from './pages/ChatRoom';
 import Profile from './pages/Profile';
+import CallHistory from './pages/CallHistory';
 
 function App() {
   return (
@@ -32,6 +33,7 @@ function App() {
               <Route index element={<ChatWelcome />} />
               <Route path="chat/:roomId" element={<ChatRoom />} />
               <Route path="dashboard" element={<Dashboard />} />
+              <Route path="calls" element={<CallHistory />} />
             </Route>
 
             {/* Profile Route (separate from MainLayout for full-page experience) */}

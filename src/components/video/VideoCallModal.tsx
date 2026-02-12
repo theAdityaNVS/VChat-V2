@@ -11,12 +11,19 @@ interface VideoCallModalProps {
 }
 
 const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) => {
+  console.log('VideoCallModal - Rendering with:', { callId, isInitiator });
   const { currentUser } = useAuth();
   const { currentCall, endCall } = useCall();
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
 
   const isAudioOnly = currentCall?.mediaType === 'audio';
+  console.log(
+    'VideoCallModal - Current call status:',
+    currentCall?.status,
+    'Media type:',
+    currentCall?.mediaType
+  );
 
   const {
     localStream,
@@ -54,16 +61,19 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     }
   }, [remoteStream]);
 
-  // Start call if initiator
+  // Start call if initiator (only once when status becomes ringing)
   useEffect(() => {
     if (isInitiator && currentCall?.status === 'ringing') {
+      console.log('VideoCallModal - Initiator starting call');
       startCall().catch((error) => {
         console.error('Failed to start call:', error);
       });
     }
-  }, [isInitiator, currentCall?.status, startCall]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isInitiator, currentCall?.status]); // Don't include startCall to prevent multiple calls
 
   const handleEndCall = async () => {
+    console.log('VideoCallModal - User clicked end call');
     endVideoCall();
     await endCall();
     onClose();

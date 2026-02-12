@@ -1,20 +1,58 @@
 import { useCall } from '../../context/CallContext';
+import { useEffect, useState } from 'react';
 
 const IncomingCallModal = () => {
   const { incomingCalls, acceptCall, rejectCall } = useCall();
+  const [timeLeft, setTimeLeft] = useState(60);
 
-  if (incomingCalls.length === 0) {
+  // Get the most recent incoming call (if any)
+  const call = incomingCalls[0];
+
+  // Calculate time remaining
+  useEffect(() => {
+    if (!call) return;
+
+    console.log('IncomingCallModal - New call detected:', call.id, call.callerName);
+
+    const calculateTimeLeft = () => {
+      const elapsed = Date.now() - call.createdAt.getTime();
+      const remaining = Math.max(0, Math.ceil((60000 - elapsed) / 1000));
+      setTimeLeft(remaining);
+
+      if (remaining === 0) {
+        console.log('IncomingCallModal - Call timeout, auto-rejecting:', call.id);
+        // Auto-reject when time runs out
+        rejectCall(call.id).catch(console.error);
+      }
+    };
+
+    // Initial calculation and interval setup
+    calculateTimeLeft();
+    const interval = setInterval(calculateTimeLeft, 1000);
+
+    return () => {
+      console.log('IncomingCallModal - Cleaning up call:', call.id);
+      clearInterval(interval);
+    };
+  }, [call, rejectCall]);
+
+  // Early return AFTER all hooks
+  if (incomingCalls.length === 0 || !call) {
     return null;
   }
 
-  // Show the most recent incoming call
-  const call = incomingCalls[0];
+  console.log('IncomingCallModal - Rendering for call:', call.id, 'Time left:', timeLeft);
 
   const handleAccept = async () => {
     try {
       await acceptCall(call.id);
     } catch (error) {
       console.error('Failed to accept call:', error);
+      if (error instanceof Error) {
+        alert(`Failed to accept call: ${error.message}`);
+      } else {
+        alert('Failed to accept call: The call may have ended');
+      }
     }
   };
 
@@ -27,27 +65,50 @@ const IncomingCallModal = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-2xl p-6 w-96 animate-bounce-in">
+    <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-2xl p-6 w-96 animate-bounce-in border-4 border-blue-500 animate-pulse-border">
       <div className="flex items-start gap-4">
         {/* Avatar */}
-        <div className="flex-shrink-0">
+        <div className="flex-shrink-0 relative">
           {call.callerAvatar ? (
             <img
               src={call.callerAvatar}
               alt={call.callerName}
-              className="w-16 h-16 rounded-full object-cover"
+              className="w-16 h-16 rounded-full object-cover ring-4 ring-green-500 ring-offset-2 animate-pulse"
             />
           ) : (
-            <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold">
+            <div className="w-16 h-16 rounded-full bg-blue-500 flex items-center justify-center text-white text-2xl font-semibold ring-4 ring-green-500 ring-offset-2 animate-pulse">
               {call.callerName[0].toUpperCase()}
             </div>
           )}
+          {/* Ringing indicator */}
+          <div className="absolute -top-1 -right-1 w-4 h-4 bg-green-500 rounded-full animate-ping" />
         </div>
 
         {/* Content */}
         <div className="flex-1">
           <h3 className="text-lg font-semibold text-gray-900">{call.callerName}</h3>
-          <p className="text-sm text-gray-600 mt-1">Incoming video call...</p>
+          <p className="text-sm text-gray-600 mt-1">
+            Incoming {call.mediaType === 'audio' ? 'voice' : 'video'} call...
+          </p>
+
+          {/* Timer */}
+          <div className="mt-2 flex items-center gap-2">
+            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+              <div
+                className={`h-1.5 rounded-full transition-all duration-1000 ${
+                  timeLeft > 30 ? 'bg-blue-600' : timeLeft > 10 ? 'bg-yellow-500' : 'bg-red-500'
+                }`}
+                style={{ width: `${(timeLeft / 60) * 100}%` }}
+              />
+            </div>
+            <span
+              className={`text-xs font-medium ${
+                timeLeft > 30 ? 'text-gray-500' : timeLeft > 10 ? 'text-yellow-600' : 'text-red-600'
+              }`}
+            >
+              {timeLeft}s
+            </span>
+          </div>
 
           {/* Actions */}
           <div className="flex gap-3 mt-4">
@@ -100,6 +161,19 @@ const IncomingCallModal = () => {
         }
         .animate-bounce-in {
           animation: bounce-in 0.5s ease-out;
+        }
+        @keyframes pulse-border {
+          0%, 100% {
+            border-color: rgb(59, 130, 246);
+            box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.7);
+          }
+          50% {
+            border-color: rgb(34, 197, 94);
+            box-shadow: 0 0 0 8px rgba(34, 197, 94, 0);
+          }
+        }
+        .animate-pulse-border {
+          animation: pulse-border 2s ease-in-out infinite;
         }
       `}</style>
     </div>

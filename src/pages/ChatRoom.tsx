@@ -8,8 +8,10 @@ import { setTypingStatus, subscribeToTyping, type TypingUser } from '../lib/typi
 import { uploadFile, isImageFile, type UploadProgress } from '../lib/uploadService';
 import { joinRoom } from '../lib/roomService';
 import { getUser } from '../lib/userService';
+import { subscribeToRoomCallLogs } from '../lib/callHistoryService';
 import type { Message } from '../types/message';
 import type { UserDoc } from '../types/user';
+import type { CallLog } from '../types/call';
 import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
 import TypingIndicator from '../components/chat/TypingIndicator';
@@ -28,6 +30,8 @@ const ChatRoom = () => {
   const [joiningError, setJoiningError] = useState<string | null>(null);
   const [showVideoCall, setShowVideoCall] = useState(false);
   const [otherUser, setOtherUser] = useState<UserDoc | null>(null);
+  const [isInitiatingCall, setIsInitiatingCall] = useState(false);
+  const [callLogs, setCallLogs] = useState<CallLog[]>([]);
 
   // Find the current room
   const currentRoom = rooms.find((room) => room.id === roomId);
@@ -42,6 +46,21 @@ const ChatRoom = () => {
 
   const { messages, loading, sendMessage, toggleReaction, editMessage, deleteMessage } =
     useMessages(effectiveRoomId);
+
+  // Subscribe to call logs for this room
+  useEffect(() => {
+    if (!roomId || !currentUser || !isMember) return;
+
+    const unsubscribe = subscribeToRoomCallLogs(
+      roomId,
+      (logs) => {
+        setCallLogs(logs);
+      },
+      currentUser.uid
+    );
+
+    return () => unsubscribe();
+  }, [roomId, currentUser, isMember]);
 
   // Auto-join public rooms
   useEffect(() => {
@@ -126,12 +145,13 @@ const ChatRoom = () => {
   };
 
   const handleInitiateVideoCall = async () => {
-    if (!roomId || !otherUser) {
-      console.error('Cannot initiate call: missing room or user info');
+    if (!roomId || !otherUser || isInitiatingCall) {
+      console.error('Cannot initiate call: missing room or user info, or already initiating');
       return;
     }
 
     try {
+      setIsInitiatingCall(true);
       await initiateCall({
         roomId,
         calleeId: otherUser.uid,
@@ -142,16 +162,19 @@ const ChatRoom = () => {
       setShowVideoCall(true);
     } catch (error) {
       console.error('Failed to initiate video call:', error);
+    } finally {
+      setIsInitiatingCall(false);
     }
   };
 
   const handleInitiateAudioCall = async () => {
-    if (!roomId || !otherUser) {
-      console.error('Cannot initiate call: missing room or user info');
+    if (!roomId || !otherUser || isInitiatingCall) {
+      console.error('Cannot initiate call: missing room or user info, or already initiating');
       return;
     }
 
     try {
+      setIsInitiatingCall(true);
       await initiateCall({
         roomId,
         calleeId: otherUser.uid,
@@ -162,17 +185,21 @@ const ChatRoom = () => {
       setShowVideoCall(true);
     } catch (error) {
       console.error('Failed to initiate audio call:', error);
+    } finally {
+      setIsInitiatingCall(false);
     }
   };
 
   // Show video call modal when there's an active call
   useEffect(() => {
-    if (currentCall && currentCall.status === 'connected') {
+    if (currentCall && (currentCall.status === 'ringing' || currentCall.status === 'connected')) {
+      console.log('Opening video call modal for status:', currentCall.status);
       setShowVideoCall(true);
     } else if (
       currentCall &&
       (currentCall.status === 'ended' || currentCall.status === 'rejected')
     ) {
+      console.log('Closing video call modal for status:', currentCall.status);
       setShowVideoCall(false);
     }
   }, [currentCall]);
@@ -246,7 +273,8 @@ const ChatRoom = () => {
             <>
               <button
                 onClick={handleInitiateAudioCall}
-                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                disabled={isInitiatingCall || !!currentCall}
+                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Start voice call"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -260,7 +288,8 @@ const ChatRoom = () => {
               </button>
               <button
                 onClick={handleInitiateVideoCall}
-                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors"
+                disabled={isInitiatingCall || !!currentCall}
+                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Start video call"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -333,6 +362,7 @@ const ChatRoom = () => {
         <>
           <MessageList
             messages={messages}
+            callLogs={callLogs}
             loading={loading}
             onReaction={handleReaction}
             onEdit={handleEdit}

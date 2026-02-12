@@ -7,6 +7,7 @@ import CreateRoomModal from '../chat/CreateRoomModal';
 import UserBrowser from '../chat/UserBrowser';
 import { createDirectMessage, joinRoom, requestToJoinRoom } from '../../lib/roomService';
 import type { UserDoc } from '../../types/user';
+import { Phone } from 'lucide-react';
 
 const Sidebar = () => {
   const { currentUser, userDoc, logout } = useAuth();
@@ -171,6 +172,13 @@ const Sidebar = () => {
 
       {/* Bottom Actions */}
       <div className="border-t p-4 space-y-2">
+        <Link
+          to="/calls"
+          className="flex items-center justify-center gap-2 w-full rounded-md bg-blue-50 px-4 py-2 text-center text-sm font-medium text-blue-600 hover:bg-blue-100"
+        >
+          <Phone className="w-4 h-4" />
+          Call History
+        </Link>
         <Link
           to="/profile"
           className="block w-full rounded-md bg-gray-100 px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-200"
