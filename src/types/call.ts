@@ -55,3 +55,24 @@ export interface CreateCallData {
   calleeAvatar?: string;
   mediaType?: MediaType; // 'audio' or 'video', defaults to 'video'
 }
+
+export type CallDirection = 'incoming' | 'outgoing';
+export type CallOutcome = 'completed' | 'missed' | 'rejected' | 'no-answer' | 'cancelled';
+
+export interface CallLog {
+  id: string;
+  callId: string;
+  roomId: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar?: string;
+  calleeId: string;
+  calleeName: string;
+  calleeAvatar?: string;
+  mediaType: MediaType;
+  direction: CallDirection; // For the current user
+  outcome: CallOutcome;
+  duration?: number; // In seconds
+  timestamp: Date;
+  createdAt: Date;
+}

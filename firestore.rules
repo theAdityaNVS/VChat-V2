@@ -144,5 +144,26 @@ service cloud.firestore {
         allow delete: if isAuthenticated();
       }
     }
+    
+    // Call Logs collection
+    match /callLogs/{logId} {
+      // Allow reading if user is caller or callee
+      allow read: if isAuthenticated() && 
+        (resource.data.callerId == request.auth.uid || 
+         resource.data.calleeId == request.auth.uid);
+      
+      // Allow creating call logs (typically done server-side or by call participants)
+      allow create: if isAuthenticated() && 
+        (request.resource.data.callerId == request.auth.uid || 
+         request.resource.data.calleeId == request.auth.uid);
+      
+      // No updates allowed - call logs are immutable
+      allow update: if false;
+      
+      // Allow deleting own call logs
+      allow delete: if isAuthenticated() && 
+        (resource.data.callerId == request.auth.uid || 
+         resource.data.calleeId == request.auth.uid);
+    }
   }
 }

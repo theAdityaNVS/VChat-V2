@@ -47,6 +47,19 @@ export const createCall = async (
     };
 
     const docRef = await addDoc(callsRef, newCall);
+
+    // Auto-cancel call after 60 seconds if not answered
+    setTimeout(async () => {
+      try {
+        const callDoc = await getDoc(doc(db, 'calls', docRef.id));
+        if (callDoc.exists() && callDoc.data().status === 'ringing') {
+          await updateCallStatus(docRef.id, 'rejected');
+        }
+      } catch (error) {
+        console.debug('Call timeout cleanup failed:', error);
+      }
+    }, 60000);
+
     return docRef.id;
   } catch (error) {
     console.error('Error creating call:', error);
@@ -150,6 +163,11 @@ export const subscribeToIncomingCalls = (
           createdAt: data.createdAt?.toDate() || new Date(),
         });
       });
+      console.log(
+        'subscribeToIncomingCalls - Firestore update:',
+        calls.length,
+        'calls with status=ringing'
+      );
       callback(calls);
     },
     (error) => {
@@ -241,7 +259,7 @@ export const sendIceCandidate = async (
 export const subscribeToSignals = (
   callId: string,
   userId: string,
-  callback: (signal: CallSignal) => void
+  callback: (signal: CallSignal & { id: string }) => void
 ): (() => void) => {
   const signalsRef = collection(db, 'calls', callId, 'signals');
   const q = query(signalsRef, where('receiverId', '==', userId));
@@ -253,6 +271,7 @@ export const subscribeToSignals = (
         if (change.type === 'added') {
           const data = change.doc.data();
           callback({
+            id: change.doc.id, // Include document ID for deduplication
             callId: data.callId,
             senderId: data.senderId,
             receiverId: data.receiverId,
@@ -312,25 +331,43 @@ export const endCall = async (callId: string): Promise<void> => {
 };
 
 /**
- * Reject an incoming call
- */
-export const rejectCall = async (callId: string): Promise<void> => {
-  try {
-    await updateCallStatus(callId, 'rejected');
-  } catch (error) {
-    console.error('Error rejecting call:', error);
-    throw new Error('Failed to reject call');
-  }
-};
-
-/**
  * Accept an incoming call
  */
 export const acceptCall = async (callId: string): Promise<void> => {
   try {
+    console.log('acceptCall - Checking if call still exists:', callId);
+    // First check if the call still exists and is in ringing status
+    const callRef = doc(db, 'calls', callId);
+    const callSnap = await getDoc(callRef);
+
+    if (!callSnap.exists()) {
+      console.log('acceptCall - Call no longer exists:', callId);
+      throw new Error('Call has ended');
+    }
+
+    const callData = callSnap.data();
+    if (callData.status !== 'ringing') {
+      console.log('acceptCall - Call status is not ringing:', callData.status);
+      throw new Error(`Call is ${callData.status}`);
+    }
+
+    console.log('acceptCall - Updating call status to connected:', callId);
     await updateCallStatus(callId, 'connected');
   } catch (error) {
     console.error('Error accepting call:', error);
-    throw new Error('Failed to accept call');
+    throw error;
+  }
+};
+
+/**
+ * Reject an incoming call
+ */
+export const rejectCall = async (callId: string): Promise<void> => {
+  try {
+    console.log('rejectCall - Updating call status to rejected:', callId);
+    await updateCallStatus(callId, 'rejected');
+  } catch (error) {
+    console.error('Error rejecting call:', error);
+    throw new Error('Failed to reject call');
   }
 };
