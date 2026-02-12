@@ -97,7 +97,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }: CreateRoomModalProps
 
   if (showUserBrowser) {
     return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-30 backdrop-blur-sm">
         <div className="w-full max-w-2xl h-[600px] rounded-lg bg-white shadow-xl flex flex-col">
           <div className="flex items-center justify-between p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-800">
@@ -141,7 +141,7 @@ const CreateRoomModal = ({ isOpen, onClose, onCreateRoom }: CreateRoomModalProps
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-800 bg-opacity-30 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-lg bg-white p-6 shadow-xl max-h-[90vh] overflow-y-auto">
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-xl font-semibold text-gray-800">Create New Room</h2>

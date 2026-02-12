@@ -153,7 +153,7 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-90 z-50 flex items-center justify-center">
+    <div className="fixed inset-0 bg-gray-900 bg-opacity-90 z-50 flex items-center justify-center">
       <div className="w-full h-full flex flex-col">
         {/* Header */}
         <div className="p-4 bg-gray-900 text-white flex items-center justify-between">
