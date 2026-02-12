@@ -34,10 +34,14 @@ export function CallProvider({ children }: CallProviderProps) {
   const [incomingCalls, setIncomingCalls] = useState<Call[]>([]);
   const [activeCallId, setActiveCallId] = useState<string | null>(null);
   const dismissedCallIdsRef = useRef<Set<string>>(new Set());
+  const callStatusUnsubscribesRef = useRef<Map<string, () => void>>(new Map());
+  const loggedCallIdsRef = useRef<Set<string>>(new Set());
 
   // Subscribe to incoming calls
   useEffect(() => {
     if (!currentUser) return;
+
+    const unsubscribes: (() => void)[] = [];
 
     const unsubscribe = subscribeToIncomingCalls(currentUser.uid, (calls) => {
       console.log('Incoming calls update:', calls.length, calls);
@@ -50,6 +54,66 @@ export function CallProvider({ children }: CallProviderProps) {
         calls.forEach((call) => {
           if (!dismissedCallIdsRef.current.has(call.id)) {
             existingCallsMap.set(call.id, call);
+
+            // Subscribe to status changes for this incoming call
+            if (!callStatusUnsubscribesRef.current.has(call.id)) {
+              const statusUnsub = subscribeToCall(call.id, (updatedCall) => {
+                if (
+                  updatedCall &&
+                  (updatedCall.status === 'ended' || updatedCall.status === 'rejected')
+                ) {
+                  // Skip if this call is being handled by active call subscription or already logged
+                  if (activeCallId === call.id || loggedCallIdsRef.current.has(call.id)) {
+                    return;
+                  }
+
+                  // Call was cancelled by caller or rejected/missed
+                  if (!dismissedCallIdsRef.current.has(call.id)) {
+                    dismissedCallIdsRef.current.add(call.id);
+                    loggedCallIdsRef.current.add(call.id);
+
+                    // Create call log based on scenario
+                    let outcome: CallOutcome;
+                    if (updatedCall.status === 'rejected') {
+                      // Could be auto-timeout or caller cancelled
+                      outcome = 'missed';
+                    } else {
+                      outcome = 'cancelled';
+                    }
+
+                    createCallLog({
+                      callId: call.id,
+                      roomId: call.roomId,
+                      callerId: call.callerId,
+                      callerName: call.callerName,
+                      callerAvatar: call.callerAvatar,
+                      calleeId: call.calleeId,
+                      calleeName: call.calleeName,
+                      calleeAvatar: call.calleeAvatar,
+                      mediaType: call.mediaType,
+                      outcome,
+                      timestamp: new Date(),
+                    }).catch((error) => {
+                      console.error(
+                        'Error creating call log for cancelled/missed incoming call:',
+                        error
+                      );
+                    });
+
+                    // Remove from incoming calls
+                    setIncomingCalls((prev) => prev.filter((c) => c.id !== call.id));
+                  }
+
+                  // Cleanup subscription
+                  const unsub = callStatusUnsubscribesRef.current.get(call.id);
+                  if (unsub) {
+                    unsub();
+                    callStatusUnsubscribesRef.current.delete(call.id);
+                  }
+                }
+              });
+              callStatusUnsubscribesRef.current.set(call.id, statusUnsub);
+            }
           }
         });
 
@@ -58,9 +122,30 @@ export function CallProvider({ children }: CallProviderProps) {
         const updatedCalls = Array.from(existingCallsMap.values()).filter((call) => {
           const callAge = now - call.createdAt.getTime();
 
-          if (callAge > 60000) {
+          if (callAge > 60000 && !dismissedCallIdsRef.current.has(call.id)) {
             console.log('Auto-dismissing stale call:', call.id, 'age:', callAge);
             dismissedCallIdsRef.current.add(call.id);
+
+            // Create missed call log only if not already logged
+            if (!loggedCallIdsRef.current.has(call.id)) {
+              loggedCallIdsRef.current.add(call.id);
+              createCallLog({
+                callId: call.id,
+                roomId: call.roomId,
+                callerId: call.callerId,
+                callerName: call.callerName,
+                callerAvatar: call.callerAvatar,
+                calleeId: call.calleeId,
+                calleeName: call.calleeName,
+                calleeAvatar: call.calleeAvatar,
+                mediaType: call.mediaType,
+                outcome: 'missed',
+                timestamp: new Date(),
+              }).catch((error) => {
+                console.error('Error creating missed call log:', error);
+              });
+            }
+
             return false;
           }
 
@@ -76,7 +161,13 @@ export function CallProvider({ children }: CallProviderProps) {
       });
     });
 
-    return () => unsubscribe();
+    unsubscribes.push(unsubscribe);
+
+    return () => {
+      unsubscribes.forEach((unsub) => unsub());
+      callStatusUnsubscribesRef.current.forEach((unsub) => unsub());
+      callStatusUnsubscribesRef.current.clear();
+    };
   }, [currentUser]);
 
   // Subscribe to active call updates
@@ -97,42 +188,45 @@ export function CallProvider({ children }: CallProviderProps) {
         if (call.status === 'ended' || call.status === 'rejected') {
           console.log('CallContext - Call ended/rejected, creating call log');
 
-          // Create call log
-          try {
-            let outcome: CallOutcome;
-            let duration: number | undefined;
+          // Create call log only if not already logged
+          if (!loggedCallIdsRef.current.has(call.id)) {
+            loggedCallIdsRef.current.add(call.id);
+            try {
+              let outcome: CallOutcome;
+              let duration: number | undefined;
 
-            if (call.status === 'rejected') {
-              outcome = 'rejected';
-            } else if (call.startedAt && call.endedAt) {
-              outcome = 'completed';
-              // Calculate duration in seconds
-              const start =
-                call.startedAt instanceof Date ? call.startedAt : call.startedAt.toDate();
-              const end = call.endedAt instanceof Date ? call.endedAt : call.endedAt.toDate();
-              duration = Math.floor((end.getTime() - start.getTime()) / 1000);
-            } else {
-              // Call was ended without being answered
-              outcome = currentUser?.uid === call.callerId ? 'cancelled' : 'no-answer';
+              if (call.status === 'rejected') {
+                outcome = 'rejected';
+              } else if (call.startedAt && call.endedAt) {
+                outcome = 'completed';
+                // Calculate duration in seconds
+                const start =
+                  call.startedAt instanceof Date ? call.startedAt : call.startedAt.toDate();
+                const end = call.endedAt instanceof Date ? call.endedAt : call.endedAt.toDate();
+                duration = Math.floor((end.getTime() - start.getTime()) / 1000);
+              } else {
+                // Call was ended without being answered
+                outcome = currentUser?.uid === call.callerId ? 'cancelled' : 'no-answer';
+              }
+
+              await createCallLog({
+                callId: call.id,
+                roomId: call.roomId,
+                callerId: call.callerId,
+                callerName: call.callerName,
+                callerAvatar: call.callerAvatar,
+                calleeId: call.calleeId,
+                calleeName: call.calleeName,
+                calleeAvatar: call.calleeAvatar,
+                mediaType: call.mediaType,
+                outcome,
+                duration,
+                timestamp: call.endedAt || new Date(),
+              });
+              console.log('CallContext - Call log created successfully');
+            } catch (error) {
+              console.error('CallContext - Error creating call log:', error);
             }
-
-            await createCallLog({
-              callId: call.id,
-              roomId: call.roomId,
-              callerId: call.callerId,
-              callerName: call.callerName,
-              callerAvatar: call.callerAvatar,
-              calleeId: call.calleeId,
-              calleeName: call.calleeName,
-              calleeAvatar: call.calleeAvatar,
-              mediaType: call.mediaType,
-              outcome,
-              duration,
-              timestamp: call.endedAt || new Date(),
-            });
-            console.log('CallContext - Call log created successfully');
-          } catch (error) {
-            console.error('CallContext - Error creating call log:', error);
           }
 
           // Cleanup
@@ -186,6 +280,13 @@ export function CallProvider({ children }: CallProviderProps) {
       // Mark as dismissed to remove from incoming calls
       dismissedCallIdsRef.current.add(callId);
       setIncomingCalls((prev) => prev.filter((call) => call.id !== callId));
+
+      // Cleanup status subscription since active call subscription will handle it
+      const statusUnsub = callStatusUnsubscribesRef.current.get(callId);
+      if (statusUnsub) {
+        statusUnsub();
+        callStatusUnsubscribesRef.current.delete(callId);
+      }
       console.log('CallContext - Removed from incoming calls');
     } catch (error) {
       console.error('Error accepting call:', error);
@@ -198,10 +299,38 @@ export function CallProvider({ children }: CallProviderProps) {
 
   const rejectCall = async (callId: string): Promise<void> => {
     try {
+      // Find the call details before rejecting
+      const call = incomingCalls.find((c) => c.id === callId);
+
+      // Mark as dismissed and logged to prevent duplicates
+      dismissedCallIdsRef.current.add(callId);
+
       await rejectCallService(callId);
 
-      // Mark as dismissed to remove from incoming calls
-      dismissedCallIdsRef.current.add(callId);
+      // Create call log for rejected incoming call
+      if (call && !loggedCallIdsRef.current.has(callId)) {
+        loggedCallIdsRef.current.add(callId);
+        try {
+          await createCallLog({
+            callId: call.id,
+            roomId: call.roomId,
+            callerId: call.callerId,
+            callerName: call.callerName,
+            callerAvatar: call.callerAvatar,
+            calleeId: call.calleeId,
+            calleeName: call.calleeName,
+            calleeAvatar: call.calleeAvatar,
+            mediaType: call.mediaType,
+            outcome: 'rejected',
+            timestamp: new Date(),
+          });
+          console.log('Call log created for rejected call');
+        } catch (error) {
+          console.error('Error creating call log for rejected call:', error);
+        }
+      }
+
+      // Remove from incoming calls
       setIncomingCalls((prev) => prev.filter((call) => call.id !== callId));
     } catch (error) {
       console.error('Error rejecting call:', error);
