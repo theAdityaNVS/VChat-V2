@@ -65,7 +65,7 @@ const IncomingCallModal = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-2xl p-6 w-96 animate-bounce-in border-4 border-blue-500 animate-pulse-border">
+    <div className="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-6 w-96 animate-bounce-in border-4 border-blue-500 dark:border-blue-600 animate-pulse-border">
       <div className="flex items-start gap-4">
         {/* Avatar */}
         <div className="flex-shrink-0 relative">
@@ -86,14 +86,14 @@ const IncomingCallModal = () => {
 
         {/* Content */}
         <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900">{call.callerName}</h3>
-          <p className="text-sm text-gray-600 mt-1">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{call.callerName}</h3>
+          <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
             Incoming {call.mediaType === 'audio' ? 'voice' : 'video'} call...
           </p>
 
           {/* Timer */}
           <div className="mt-2 flex items-center gap-2">
-            <div className="flex-1 bg-gray-200 rounded-full h-1.5">
+            <div className="flex-1 bg-gray-200 dark:bg-gray-700 rounded-full h-1.5">
               <div
                 className={`h-1.5 rounded-full transition-all duration-1000 ${
                   timeLeft > 30 ? 'bg-blue-600' : timeLeft > 10 ? 'bg-yellow-500' : 'bg-red-500'

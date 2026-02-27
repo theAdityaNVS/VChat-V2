@@ -11,7 +11,7 @@ const MainLayout = () => {
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
+    <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 transition-colors">
       {/* Incoming Call Modal */}
       <IncomingCallModal />
 
@@ -19,7 +19,7 @@ const MainLayout = () => {
       <div
         className={`${
           isSidebarOpen ? 'translate-x-0' : '-translate-x-full'
-        } fixed inset-y-0 left-0 z-30 w-64 bg-white shadow-lg transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}
+        } fixed inset-y-0 left-0 z-30 w-64 bg-white dark:bg-gray-900 shadow-lg transition-transform duration-300 ease-in-out lg:relative lg:translate-x-0`}
       >
         <Sidebar />
       </div>
@@ -35,10 +35,10 @@ const MainLayout = () => {
       {/* Main Content Area */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Header */}
-        <header className="flex h-16 items-center justify-between border-b bg-white px-4 shadow-sm">
+        <header className="flex h-16 items-center justify-between border-b dark:border-gray-700 bg-white dark:bg-gray-900 px-4 shadow-sm transition-colors">
           <button
             onClick={toggleSidebar}
-            className="rounded-md p-2 text-gray-600 hover:bg-gray-100 lg:hidden"
+            className="rounded-md p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 lg:hidden"
             aria-label="Toggle sidebar"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -50,7 +50,7 @@ const MainLayout = () => {
               />
             </svg>
           </button>
-          <h1 className="text-xl font-semibold text-gray-800">VChat</h1>
+          <h1 className="text-xl font-semibold text-gray-800 dark:text-gray-100">VChat</h1>
           <div className="w-10" /> {/* Spacer for alignment */}
         </header>
 

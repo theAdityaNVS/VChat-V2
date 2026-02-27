@@ -17,9 +17,9 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
     return (
       <div className="px-3 py-8 text-center">
         <div className="animate-pulse space-y-2">
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
         </div>
       </div>
     );
@@ -27,7 +27,7 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
 
   if (rooms.length === 0) {
     return (
-      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center">
         No rooms yet. Create one to get started!
       </div>
     );
@@ -47,12 +47,16 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
             <Link
               to={`/chat/${room.id}`}
               className={`flex items-center space-x-3 rounded-lg px-3 py-2 transition-colors ${
-                isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                isActive
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               <div
                 className={`h-10 w-10 flex-shrink-0 rounded-lg flex items-center justify-center font-semibold ${
-                  isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
                 {room.avatarUrl ? (
@@ -69,23 +73,25 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
                 <div className="flex items-center gap-2">
                   <p className="text-sm font-medium truncate">{room.name}</p>
                   {isPublic && !isMember && (
-                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">
                       Public
                     </span>
                   )}
                   {isPrivate && !isMember && (
-                    <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded">
                       Private
                     </span>
                   )}
                 </div>
                 {room.lastMessage && (
-                  <p className="text-xs text-gray-500 truncate">{room.lastMessage}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {room.lastMessage}
+                  </p>
                 )}
               </div>
               {room.type === 'private' && (
                 <svg
-                  className="h-4 w-4 text-gray-400"
+                  className="h-4 w-4 text-gray-400 dark:text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

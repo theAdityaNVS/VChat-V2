@@ -73,69 +73,84 @@ export const subscribeToUserCallLogs = (
   const logs: CallLog[] = [];
   const processedIds = new Set<string>();
 
-  const unsubscribe1 = onSnapshot(q, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      const data = change.doc.data();
-      const log: CallLog = {
-        id: change.doc.id,
-        callId: data.callId,
-        roomId: data.roomId,
-        callerId: data.callerId,
-        callerName: data.callerName,
-        callerAvatar: data.callerAvatar,
-        calleeId: data.calleeId,
-        calleeName: data.calleeName,
-        calleeAvatar: data.calleeAvatar,
-        mediaType: data.mediaType,
-        direction: data.callerId === userId ? 'outgoing' : 'incoming',
-        outcome: data.outcome,
-        duration: data.duration,
-        timestamp: data.timestamp?.toDate() || new Date(),
-        createdAt: data.createdAt?.toDate() || new Date(),
-      };
+  const unsubscribe1 = onSnapshot(
+    q,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const log: CallLog = {
+          id: change.doc.id,
+          callId: data.callId,
+          roomId: data.roomId,
+          callerId: data.callerId,
+          callerName: data.callerName,
+          callerAvatar: data.callerAvatar,
+          calleeId: data.calleeId,
+          calleeName: data.calleeName,
+          calleeAvatar: data.calleeAvatar,
+          mediaType: data.mediaType,
+          direction: data.callerId === userId ? 'outgoing' : 'incoming',
+          outcome: data.outcome,
+          duration: data.duration,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+        };
 
-      if (change.type === 'added' && !processedIds.has(log.id)) {
-        logs.push(log);
-        processedIds.add(log.id);
-      }
-    });
+        if (change.type === 'added' && !processedIds.has(log.id)) {
+          logs.push(log);
+          processedIds.add(log.id);
+        }
+      });
 
-    // Sort by timestamp and callback
-    logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    callback([...logs]);
-  });
+      // Sort by timestamp and callback
+      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      callback([...logs]);
+    },
+    (error) => {
+      console.error('Error in user call logs subscription (caller):', error);
+      // Call callback with empty array on error to prevent UI issues
+      callback([]);
+    }
+  );
 
-  const unsubscribe2 = onSnapshot(q2, (snapshot) => {
-    snapshot.docChanges().forEach((change) => {
-      const data = change.doc.data();
-      const log: CallLog = {
-        id: change.doc.id,
-        callId: data.callId,
-        roomId: data.roomId,
-        callerId: data.callerId,
-        callerName: data.callerName,
-        callerAvatar: data.callerAvatar,
-        calleeId: data.calleeId,
-        calleeName: data.calleeName,
-        calleeAvatar: data.calleeAvatar,
-        mediaType: data.mediaType,
-        direction: data.callerId === userId ? 'outgoing' : 'incoming',
-        outcome: data.outcome,
-        duration: data.duration,
-        timestamp: data.timestamp?.toDate() || new Date(),
-        createdAt: data.createdAt?.toDate() || new Date(),
-      };
+  const unsubscribe2 = onSnapshot(
+    q2,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const log: CallLog = {
+          id: change.doc.id,
+          callId: data.callId,
+          roomId: data.roomId,
+          callerId: data.callerId,
+          callerName: data.callerName,
+          callerAvatar: data.callerAvatar,
+          calleeId: data.calleeId,
+          calleeName: data.calleeName,
+          calleeAvatar: data.calleeAvatar,
+          mediaType: data.mediaType,
+          direction: data.callerId === userId ? 'outgoing' : 'incoming',
+          outcome: data.outcome,
+          duration: data.duration,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+        };
 
-      if (change.type === 'added' && !processedIds.has(log.id)) {
-        logs.push(log);
-        processedIds.add(log.id);
-      }
-    });
+        if (change.type === 'added' && !processedIds.has(log.id)) {
+          logs.push(log);
+          processedIds.add(log.id);
+        }
+      });
 
-    // Sort by timestamp and callback
-    logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
-    callback([...logs]);
-  });
+      // Sort by timestamp and callback
+      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      callback([...logs]);
+    },
+    (error) => {
+      console.error('Error in user call logs subscription (callee):', error);
+      // Don't call callback here as it would duplicate the error handling
+    }
+  );
 
   return () => {
     unsubscribe1();
@@ -145,6 +160,7 @@ export const subscribeToUserCallLogs = (
 
 /**
  * Subscribe to call logs for a specific room
+ * Only fetches logs where the user is either caller or callee (to respect security rules)
  */
 export const subscribeToRoomCallLogs = (
   roomId: string,
@@ -153,41 +169,106 @@ export const subscribeToRoomCallLogs = (
   limitCount: number = 20
 ): (() => void) => {
   const callLogsRef = collection(db, 'callLogs');
-  const q = query(
+
+  // Query for logs where user is caller
+  const q1 = query(
     callLogsRef,
     where('roomId', '==', roomId),
+    where('callerId', '==', userId),
     orderBy('timestamp', 'desc'),
     limit(limitCount)
   );
 
-  const unsubscribe = onSnapshot(q, (snapshot) => {
-    const logs: CallLog[] = [];
+  // Query for logs where user is callee
+  const q2 = query(
+    callLogsRef,
+    where('roomId', '==', roomId),
+    where('calleeId', '==', userId),
+    orderBy('timestamp', 'desc'),
+    limit(limitCount)
+  );
 
-    snapshot.forEach((doc) => {
-      const data = doc.data();
-      logs.push({
-        id: doc.id,
-        callId: data.callId,
-        roomId: data.roomId,
-        callerId: data.callerId,
-        callerName: data.callerName,
-        callerAvatar: data.callerAvatar,
-        calleeId: data.calleeId,
-        calleeName: data.calleeName,
-        calleeAvatar: data.calleeAvatar,
-        mediaType: data.mediaType,
-        direction: data.callerId === userId ? 'outgoing' : 'incoming',
-        outcome: data.outcome,
-        duration: data.duration,
-        timestamp: data.timestamp?.toDate() || new Date(),
-        createdAt: data.createdAt?.toDate() || new Date(),
+  const logs: CallLog[] = [];
+  const processedIds = new Set<string>();
+
+  const unsubscribe1 = onSnapshot(
+    q1,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const log: CallLog = {
+          id: change.doc.id,
+          callId: data.callId,
+          roomId: data.roomId,
+          callerId: data.callerId,
+          callerName: data.callerName,
+          callerAvatar: data.callerAvatar,
+          calleeId: data.calleeId,
+          calleeName: data.calleeName,
+          calleeAvatar: data.calleeAvatar,
+          mediaType: data.mediaType,
+          direction: 'outgoing',
+          outcome: data.outcome,
+          duration: data.duration,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+        };
+
+        if (change.type === 'added' && !processedIds.has(log.id)) {
+          logs.push(log);
+          processedIds.add(log.id);
+        }
       });
-    });
 
-    callback(logs);
-  });
+      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      callback([...logs]);
+    },
+    (error) => {
+      console.error('Error in room call logs subscription (caller):', error);
+    }
+  );
 
-  return unsubscribe;
+  const unsubscribe2 = onSnapshot(
+    q2,
+    (snapshot) => {
+      snapshot.docChanges().forEach((change) => {
+        const data = change.doc.data();
+        const log: CallLog = {
+          id: change.doc.id,
+          callId: data.callId,
+          roomId: data.roomId,
+          callerId: data.callerId,
+          callerName: data.callerName,
+          callerAvatar: data.callerAvatar,
+          calleeId: data.calleeId,
+          calleeName: data.calleeName,
+          calleeAvatar: data.calleeAvatar,
+          mediaType: data.mediaType,
+          direction: 'incoming',
+          outcome: data.outcome,
+          duration: data.duration,
+          timestamp: data.timestamp?.toDate() || new Date(),
+          createdAt: data.createdAt?.toDate() || new Date(),
+        };
+
+        if (change.type === 'added' && !processedIds.has(log.id)) {
+          logs.push(log);
+          processedIds.add(log.id);
+        }
+      });
+
+      logs.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+      callback([...logs]);
+    },
+    (error) => {
+      console.error('Error in room call logs subscription (callee):', error);
+    }
+  );
+
+  return () => {
+    unsubscribe1();
+    unsubscribe2();
+  };
 };
 
 /**

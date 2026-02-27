@@ -7,11 +7,11 @@ const ChatWelcome = () => {
   const { createRoom } = useRooms();
 
   return (
-    <div className="flex h-full items-center justify-center bg-gray-50">
+    <div className="flex h-full items-center justify-center bg-gray-50 dark:bg-gray-900 transition-colors">
       <div className="text-center">
         <div className="mb-4 flex justify-center">
           <svg
-            className="h-24 w-24 text-gray-400"
+            className="h-24 w-24 text-gray-400 dark:text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -24,8 +24,12 @@ const ChatWelcome = () => {
             />
           </svg>
         </div>
-        <h2 className="text-2xl font-semibold text-gray-700 mb-2">Welcome to VChat</h2>
-        <p className="text-gray-500 mb-6">Select a room from the sidebar to start chatting</p>
+        <h2 className="text-2xl font-semibold text-gray-700 dark:text-gray-200 mb-2">
+          Welcome to VChat
+        </h2>
+        <p className="text-gray-500 dark:text-gray-400 mb-6">
+          Select a room from the sidebar to start chatting
+        </p>
         <button
           onClick={() => setIsCreateModalOpen(true)}
           className="rounded-md bg-blue-600 px-6 py-2 text-white font-medium hover:bg-blue-700 transition-colors"
