@@ -1,4 +1,5 @@
 import { useEffect, useRef, useMemo } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
 import Message from './Message';
 import { CallLogItem } from './CallLogItem';
@@ -39,8 +40,8 @@ const MessageList = ({
     return items.sort((a, b) => {
       const aTime = a.type === 'message' ? a.data.createdAt : a.data.timestamp;
       const bTime = b.type === 'message' ? b.data.createdAt : b.data.timestamp;
-      const aDate = aTime instanceof Date ? aTime : aTime.toDate();
-      const bDate = bTime instanceof Date ? bTime : bTime.toDate();
+      const aDate = aTime instanceof Date ? aTime : (aTime as Timestamp).toDate();
+      const bDate = bTime instanceof Date ? bTime : (bTime as Timestamp).toDate();
       return aDate.getTime() - bDate.getTime();
     });
   }, [messages, callLogs]);
