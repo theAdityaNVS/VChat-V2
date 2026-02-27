@@ -2226,6 +2226,153 @@ BrowserRouter
 
 ---
 
+## Phase 4 Post-Implementation Bug Fixes
+
+**Date**: February 2026  
+**Scope**: End-to-end review of all Phase 4 video/audio call code, identifying and fixing 6 bugs across 5 files.
+
+### Bug 1: Media Stream Leak on Unmount (`useVideoCall.ts`) ✅
+
+**Problem**: The unmount cleanup effect captured a stale `localStream` closure (always `null` at mount time), so the real media tracks were never stopped when the component unmounted — causing the browser camera/mic LED to stay on.
+
+**Fix**: Added a `localStreamRef` (React ref) that tracks the current stream. The cleanup effect now reads `localStreamRef.current` instead of the stale state variable.
+
+```typescript
+// Before: captured stale null
+useEffect(() => {
+  return () => {
+    localStream?.getTracks().forEach((t) => t.stop());
+  };
+}, []);
+
+// After: ref always has current value
+const localStreamRef = useRef<MediaStream | null>(null);
+// ... set localStreamRef.current = stream in initLocalStream
+useEffect(() => {
+  return () => {
+    localStreamRef.current?.getTracks().forEach((t) => t.stop());
+  };
+}, []);
+```
+
+### Bug 2: Signal Re-subscriptions from Unstable Callback (`useVideoCall.ts`) ✅
+
+**Problem**: `onCallEnded` callback was in the dependency array of `initPeerConnection`, causing the peer connection to be re-initialized every time the parent re-rendered with a new function reference. This led to repeated Firestore signal subscriptions and potential duplicate ICE candidate processing.
+
+**Fix**: Added an `onCallEndedRef` pattern — store the latest callback in a ref and use the ref inside the peer connection setup, removing it from the deps array.
+
+```typescript
+const onCallEndedRef = useRef(onCallEnded);
+onCallEndedRef.current = onCallEnded; // Always up to date
+// initPeerConnection deps: [callId, userId, onRemoteStream] — no onCallEnded
+```
+
+### Bug 3: Event Listener Memory Leak (`VideoCallModal.tsx`) ✅
+
+**Problem**: Remote stream track event listeners used anonymous arrow functions, so `removeEventListener` in the cleanup could never match the originally added listener. Mute/unmute handlers accumulated on every effect re-run.
+
+**Fix**: Refactored to use named function references (`handleMute`, `handleUnmute`) so `addEventListener` and `removeEventListener` operate on the same reference.
+
+```typescript
+// Before: anonymous — never actually removed
+videoTrack.addEventListener('mute', () => setIsRemoteVideoActive(false));
+
+// After: named — properly cleaned up
+const handleMute = () => setIsRemoteVideoActive(false);
+const handleUnmute = () => setIsRemoteVideoActive(true);
+videoTrack.addEventListener('mute', handleMute);
+// cleanup: videoTrack.removeEventListener('mute', handleMute);
+```
+
+### Bug 4: Infinite Effect Loop on Remote Stream (`VideoCallModal.tsx`) ✅
+
+**Problem**: The remote stream effect had `isRemoteVideoActive` in its dependency array. Since the effect itself sets `isRemoteVideoActive`, it would trigger itself in an infinite loop.
+
+**Fix**: Removed `isRemoteVideoActive` from the deps array (it's only written, never read, inside the effect).
+
+```typescript
+// Before: infinite loop
+useEffect(() => {
+  /* sets isRemoteVideoActive */
+}, [remoteStream, isRemoteVideoActive]);
+
+// After: runs only when remoteStream changes
+useEffect(() => {
+  /* sets isRemoteVideoActive */
+}, [remoteStream]);
+```
+
+### Bug 5: Context Value Instability — Cascading Re-renders (`CallContext.tsx`) ✅
+
+**Problem**: `initiateCall`, `acceptCall`, `rejectCall`, and `endCall` were plain functions recreated every render. The context value object was also recreated every render. This caused all consumers (including `IncomingCallModal`) to re-render on any state change, resetting the 60-second countdown timer.
+
+**Fix**: Wrapped all four functions in `useCallback` with proper dependency arrays. Wrapped the context value in `useMemo`. Consumers now only re-render when relevant state actually changes.
+
+```typescript
+const initiateCall = useCallback(async (...) => { ... }, [currentUser, userDoc]);
+const acceptCall   = useCallback(async (...) => { ... }, []);
+const rejectCall   = useCallback(async (...) => { ... }, [incomingCalls]);
+const endCall      = useCallback(async ()    => { ... }, [activeCallId]);
+
+const value = useMemo(() => ({
+  currentCall, incomingCalls, activeCallId, isInCall,
+  initiateCall, acceptCall, rejectCall, endCall,
+}), [currentCall, incomingCalls, activeCallId, isInCall,
+     initiateCall, acceptCall, rejectCall, endCall]);
+```
+
+### Bug 6: Call Log Subscriptions Ignoring Modified/Removed Docs (`callHistoryService.ts`) ✅
+
+**Problem**: Both `subscribeToUserCallLogs` and `subscribeToRoomCallLogs` used a shared mutable array with a `Set<string>` for dedup, but only handled `docChange.type === 'added'`. Modified and removed documents were silently ignored — meaning updated call outcomes (e.g., "ringing" → "completed") and deleted logs never reflected in the UI.
+
+**Fix**: Refactored to use `Map<string, CallLog>` for each query. On every snapshot, all three change types (`added`, `modified`, `removed`) are handled. A shared `emitMergedLogs()` merges both maps, deduplicates by ID, sorts chronologically, and emits to the callback.
+
+```typescript
+const callerLogs = new Map<string, CallLog>();
+const calleeLogs = new Map<string, CallLog>();
+
+const emitMergedLogs = () => {
+  const merged = new Map([...callerLogs, ...calleeLogs]);
+  const sorted = Array.from(merged.values()).sort(/* by createdAt desc */);
+  callback(sorted);
+};
+
+// Each onSnapshot handler:
+changes.forEach((change) => {
+  if (change.type === 'removed') {
+    map.delete(id);
+  } else {
+    map.set(id, log);
+  } // covers 'added' and 'modified'
+});
+emitMergedLogs();
+```
+
+### Files Modified
+
+| File                                      | Changes                                                                                   |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------- |
+| `src/hooks/useVideoCall.ts`               | Added `localStreamRef`, `onCallEndedRef`; fixed unmount cleanup; stabilized callback deps |
+| `src/components/video/VideoCallModal.tsx` | Named event handlers for proper cleanup; removed `isRemoteVideoActive` from deps          |
+| `src/context/CallContext.tsx`             | Wrapped functions in `useCallback`, context value in `useMemo`                            |
+| `src/components/video/CallControls.tsx`   | Fixed `onToggleScreenShare` type: `() => void` → `() => void \| Promise<void>`            |
+| `src/lib/callHistoryService.ts`           | Refactored dual-query subscriptions to Map-based tracking with full change type handling  |
+
+### Impact
+
+- **Memory**: No more leaked media tracks or accumulated event listeners
+- **Stability**: Peer connection initialized once per call, not per re-render
+- **UX**: IncomingCallModal timer counts down correctly without resetting
+- **Data Integrity**: Call history updates and deletions now propagate to UI in real-time
+- **Type Safety**: Screen share toggle properly typed as async-compatible
+
+### Build Verification
+
+- `npx tsc --noEmit` — ✅ No type errors
+- `npx vite build` — ✅ Production build successful (893.78 kB JS bundle)
+
+---
+
 ## Current Status & Next Steps
 
 **Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | ✅ Phase 4 Complete

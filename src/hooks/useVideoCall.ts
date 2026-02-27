@@ -51,6 +51,13 @@ export const useVideoCall = ({
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const localStreamRef = useRef<MediaStream | null>(null);
+
+  // Keep a stable reference to onCallEnded to avoid re-subscriptions
+  const onCallEndedRef = useRef(onCallEnded);
+  useEffect(() => {
+    onCallEndedRef.current = onCallEnded;
+  }, [onCallEnded]);
 
   // Get remote user ID from call
   const remoteUserId = useRef<string>('');
@@ -101,6 +108,7 @@ export const useVideoCall = ({
         videoTracks: stream.getVideoTracks().length,
       });
 
+      localStreamRef.current = stream;
       setLocalStream(stream);
       return stream;
     } catch (error) {
@@ -161,15 +169,15 @@ export const useVideoCall = ({
           peerConnection.connectionState === 'failed' ||
           peerConnection.connectionState === 'closed'
         ) {
-          if (onCallEnded) {
-            onCallEnded();
+          if (onCallEndedRef.current) {
+            onCallEndedRef.current();
           }
         }
       };
 
       return peerConnection;
     },
-    [callId, userId, onRemoteStream, onCallEnded]
+    [callId, userId, onRemoteStream]
   );
 
   /**
@@ -473,28 +481,29 @@ export const useVideoCall = ({
       peerConnectionRef.current = null;
     }
 
+    localStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
     setIsAudioEnabled(true);
     setIsVideoEnabled(true);
     setIsScreenSharing(false);
 
-    if (onCallEnded) {
+    if (onCallEndedRef.current) {
       console.log('useVideoCall - Calling onCallEnded callback');
-      onCallEnded();
+      onCallEndedRef.current();
     }
-  }, [localStream, onCallEnded]);
+  }, [localStream]);
 
   // Cleanup on unmount only (not when endCall changes)
   useEffect(() => {
-    const processedSignals = processedSignalsRef.current;
-    const iceCandidateQueue = iceCandidateQueueRef.current;
-
+    const signals = processedSignalsRef.current;
+    const candidates = iceCandidateQueueRef.current;
     return () => {
       console.log('useVideoCall - Cleaning up on unmount');
-      // Stop all tracks
-      if (localStream) {
-        localStream.getTracks().forEach((track) => track.stop());
+      // Stop all tracks using ref to get current value
+      if (localStreamRef.current) {
+        localStreamRef.current.getTracks().forEach((track) => track.stop());
+        localStreamRef.current = null;
       }
 
       // Close peer connection
@@ -504,10 +513,9 @@ export const useVideoCall = ({
       }
 
       // Clear processed signals and ICE candidate queue
-      processedSignals.clear();
-      iceCandidateQueue.length = 0;
+      signals.clear();
+      candidates.length = 0;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []); // Empty deps - only run on unmount
 
   return {
