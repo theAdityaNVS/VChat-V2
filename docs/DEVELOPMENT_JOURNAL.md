@@ -2,8 +2,8 @@
 
 **Project**: Real-time Video Chat Application  
 **Developer**: Nadam  
-**Timeline**: Phase 1 (Foundation & Authentication) - Complete | Phase 2 (Core Chat Features) - Complete  
-**Last Updated**: February 8, 2026
+**Timeline**: Phase 1 - Complete | Phase 2 - Complete | Phase 3 - Complete | Phase 4 - Complete  
+**Last Updated**: February 27, 2026
 
 ---
 
@@ -17,7 +17,13 @@
 6. [Challenges & Solutions](#challenges--solutions)
 7. [Best Practices & Patterns](#best-practices--patterns)
 8. [Testing Strategy](#testing-strategy)
-9. [Next Steps](#next-steps)
+9. [Phase 2: Core Chat Features](#phase-2-core-chat-features)
+10. [Phase 3: Enhanced Messaging Features](#phase-3-enhanced-messaging-features)
+11. [Phase 3.5: Room Management & User Discovery](#phase-35-room-management--user-discovery)
+12. [Phase 4: Video Integration (WebRTC)](#phase-4-video-integration-webrtc)
+13. [Phase 4.5: Dark Mode & Polish](#phase-45-dark-mode--polish)
+14. [Current Status & Next Steps](#current-status--next-steps)
+15. [Journal Maintenance Guide](#journal-maintenance-guide)
 
 ---
 
@@ -671,20 +677,22 @@ Automatic code formatting on save and pre-commit
 
 ## Next Steps
 
-### Phase 2: Core Features (Upcoming)
+> **Note**: This section was written at the end of Phase 1. Phases 2-4 have since been completed. See the phase-specific sections below for details on what was built. Current next steps are documented in [Current Status & Next Steps](#current-status--next-steps).
 
-- **User List**: Display all users, online/offline status
-- **Chat Rooms**: One-on-one conversations
-- **Real-time Messaging**: Firestore listeners for instant updates
-- **Message Features**: Read receipts, timestamps, typing indicators
+### ~~Phase 2: Core Features~~ ✅ Complete
+
+### ~~Phase 3: Enhanced Messaging~~ ✅ Complete
+
+### ~~Phase 4: Video Integration~~ ✅ Complete
 
 ### Technical Debt to Address
 
 1. Add comprehensive error message mapping
-2. Implement loading states for all async operations
-3. Add form validation library (React Hook Form)
-4. Set up unit testing framework (Vitest + Testing Library)
-5. Add E2E testing (Playwright)
+2. Add form validation library (React Hook Form)
+3. Set up unit testing framework (Vitest + Testing Library)
+4. Add E2E testing (Playwright)
+5. Add TURN server fallback for WebRTC (calls fail behind symmetric NATs)
+6. Dark mode support for RoomSettings modal (currently missing)
 
 ### Performance Optimizations (Future)
 
@@ -692,6 +700,7 @@ Automatic code formatting on save and pre-commit
 - Implement virtual scrolling for message lists
 - Optimize Firestore queries with proper indexing
 - Add service worker for offline support
+- Bundle size optimization (target < 200KB gzipped)
 
 ---
 
@@ -746,9 +755,9 @@ Automatic code formatting on save and pre-commit
 
 Phase 1 establishes solid foundation for VChat V2. Every decision was made with maintainability, scalability, and user experience in mind. The architecture supports rapid feature development while maintaining code quality.
 
-**Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete
+**Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | ✅ Phase 4 Complete
 
-**Ready for**: Phase 3 - Enhanced Messaging Features
+**Ready for**: Phase 5 - Polish, Testing & Advanced Features
 
 ---
 
@@ -1646,6 +1655,179 @@ allow write: if request.auth != null &&
 
 ---
 
+## Phase 3.5: Room Management & User Discovery
+
+**Duration**: February 9-11, 2026  
+**Status**: ✅ Complete
+
+These features were developed as late additions to Phase 3 (on the `phase-3` branch), extending VChat from basic room management into a full-featured room and user system with direct messages, private groups, and member management.
+
+### What Was Built
+
+#### 1. User Browser & Discovery ✅
+
+**Files Created**:
+
+- [src/components/chat/UserBrowser.tsx](src/components/chat/UserBrowser.tsx) - Browsable/searchable user list
+- [src/lib/userService.ts](src/lib/userService.ts) - User CRUD and search operations
+
+**Features**:
+
+- Browse all registered users (excluding self)
+- Client-side filtering by name or email
+- User cards with avatar (photo or gradient initial), status indicator, name, email, bio
+- Two interaction modes:
+  - **Single select**: "Message" button per user to start direct messages
+  - **Multi-select**: Checkmark indicators for selecting users when creating groups
+
+**User Service**:
+
+```typescript
+// userService.ts - Paginated user list and search
+export const getAllUsers = (limit = 100) => { ... };
+export const searchUsers = (searchTerm) => { ... }; // Prefix-based Firestore range query
+export const subscribeToUsers = (callback) => { ... }; // Real-time subscription
+```
+
+**Why prefix search?** Firestore doesn't support full-text search natively. The range query (`>=` / `<= \uf8ff`) provides basic prefix matching. For production, Algolia or Typesense would be better.
+
+#### 2. Direct Messages Tab ✅
+
+**Files Modified**:
+
+- [src/components/layouts/Sidebar.tsx](src/components/layouts/Sidebar.tsx) - Split into Rooms/DM tabs
+- [src/components/chat/RoomList.tsx](src/components/chat/RoomList.tsx) - Filtered room display
+
+**Features**:
+
+- Sidebar split into two tabs: **Rooms** and **Direct Messages**
+- Rooms tab: Shows public/private group rooms with "Create room" button
+- DM tab: Shows direct message conversations with "New message" button
+- "New message" toggles the UserBrowser inline for starting DM conversations
+- `createDirectMessage()` service function finds or creates a DM room between two users
+
+#### 3. Room Settings & Member Management ✅
+
+**Files Created**:
+
+- [src/components/chat/RoomSettings.tsx](src/components/chat/RoomSettings.tsx) - Room management modal (364 lines)
+
+**Features**:
+
+- Three-tab modal dialog: **Details**, **Members**, **Requests**
+- **Details tab**: Room name, type, description, creation date
+- **Members tab**: List of members with avatar/name/email, admin can remove members (except self), admin can search and add new members
+- **Requests tab** (private rooms, admin only): View pending join requests with approve/reject actions
+
+**Room Service Extensions**:
+
+```typescript
+// New roomService functions
+export const addRoomMember = (roomId, userId) => { ... };
+export const removeRoomMember = (roomId, userId) => { ... };
+export const getRoomJoinRequests = (roomId) => { ... };
+export const approveJoinRequest = (roomId, requestId, userId) => { ... };
+export const rejectJoinRequest = (roomId, requestId) => { ... };
+export const requestToJoinRoom = (roomId, userId, userName) => { ... };
+```
+
+#### 4. Private Room Join Requests ✅
+
+**Features**:
+
+- "Request to Join" button appears for private rooms user hasn't joined
+- Request stored in Firestore with userId and userName
+- Room admins see pending requests in Room Settings → Requests tab
+- Approve adds user to room members, reject removes the request
+- Visual feedback during request submission
+
+#### 5. Auto-Join for Public Rooms ✅
+
+**Files Modified**:
+
+- [src/pages/ChatRoom.tsx](src/pages/ChatRoom.tsx) - Auto-join logic for non-members
+
+**Features**:
+
+- When users navigate to a public room they haven't joined, they auto-join
+- Loading state while joining
+- Error feedback if join fails
+- Non-members of private rooms see a join request prompt instead
+
+#### 6. Enhanced File Upload & Emoji Picker ✅
+
+**Files Modified**:
+
+- [src/components/chat/MessageInput.tsx](src/components/chat/MessageInput.tsx) - Major enhancement (200+ lines)
+
+**Features**:
+
+- **File upload progress tracking**: Visual progress bar during upload
+- **Emoji picker integration**: Inline emoji selector in message input
+- **Image preview**: Thumbnail preview of selected images before sending
+- **Upload state management**: Tracks uploading/completed/error states
+
+#### 7. Infrastructure & Deployment ✅
+
+**Commits**:
+
+- reCAPTCHA integration for Firebase App Check
+- Firebase configuration files (`firebase.json`, `firestore.rules`, `storage.rules`, `database.rules.json`)
+- Firestore indexes for rooms collection
+- Vercel deployment configuration (`vercel.json`)
+- Firebase setup guide documentation (`docs/FIREBASE_SETUP.md`)
+- Storage rules fix for temporarily disabling App Check
+
+### Challenges & Solutions
+
+**Challenge: Firestore OR Queries**
+
+- **Problem**: Need to query rooms where user is a member OR rooms that are public
+- **Solution**: Separate queries for joined rooms and public rooms, merge client-side
+
+**Challenge: DM Room Deduplication**
+
+- **Problem**: Creating a DM should find existing conversation, not create duplicates
+- **Solution**: `createDirectMessage()` queries for existing DM rooms between the two users first
+
+**Challenge: Room Type Filtering in Sidebar**
+
+- **Problem**: Need to show different room types in different tabs
+- **Solution**: Client-side filtering of the rooms subscription by `room.type`
+
+### Files Created/Modified
+
+**New Files (3)**:
+
+- `src/components/chat/UserBrowser.tsx` - User discovery component
+- `src/components/chat/RoomSettings.tsx` - Room management modal
+- `src/lib/userService.ts` - User query and search operations
+
+**Modified Files (7)**:
+
+- `src/components/layouts/Sidebar.tsx` - Tabs, theme toggle, DM flow
+- `src/components/chat/RoomList.tsx` - Filtered display, join requests
+- `src/components/chat/CreateRoomModal.tsx` - Private room creation
+- `src/components/chat/MessageInput.tsx` - Emoji picker, upload progress
+- `src/lib/roomService.ts` - Join requests, member management
+- `src/pages/ChatRoom.tsx` - Auto-join, room settings integration
+- `src/types/user.ts` - Enhanced user profile types
+
+### What's Working
+
+✅ Browse and search all users  
+✅ Start direct message conversations  
+✅ Split Rooms/DMs tabs in sidebar  
+✅ Room settings with member management  
+✅ Private room join request system  
+✅ Auto-join for public rooms  
+✅ Emoji picker in message input  
+✅ File upload progress tracking  
+✅ Vercel deployment configuration  
+✅ Firebase security rules deployed
+
+---
+
 **Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | ✅ Phase 4 Complete
 
 **Ready for**: Production Deployment & Polish
@@ -1654,7 +1836,8 @@ allow write: if request.auth != null &&
 
 ## Phase 4: Video Integration (WebRTC)
 
-**Completed**: February 11, 2026
+**Duration**: February 11-13, 2026  
+**Status**: ✅ Complete
 
 Phase 4 brought real-time video calling capabilities to VChat, implementing WebRTC for peer-to-peer video communication with Firebase Firestore as the signaling service.
 
@@ -1814,11 +1997,357 @@ const { localStream, remoteStream, toggleAudio, toggleVideo } = useVideoCall({
 3. **Graceful Degradation**: Clear error messages for permission denials
 4. **Responsive Design**: Video scales to fit any screen size
 
+#### 5. Call History & Logging ✅
+
+**Files Created**:
+
+- `src/lib/callHistoryService.ts` - Call log CRUD with dual-query pattern
+- `src/pages/CallHistory.tsx` - Full-page call history view
+- `src/components/chat/CallLogItem.tsx` - Inline call log display in chat
+
+**Features**:
+
+- Automatic logging of all call attempts with outcome tracking
+- Call outcomes: completed (with duration), missed, rejected, no-answer, cancelled
+- Full-page call history at `/calls` route with filter tabs: All, Incoming, Outgoing, Missed
+- Inline call log items displayed within chat rooms
+- Smart timestamp formatting (time for today, "Yesterday", weekday for <7 days, month/day for older)
+- Color-coded icons: red for missed, blue for outgoing, green for incoming
+- Lucide-react icons for call direction and media type
+
+**Dual-Query Pattern** (Firestore limitation):
+
+```typescript
+// Firestore can't do OR queries, so we run two parallel queries
+// and deduplicate client-side
+const callerQuery = query(collection, where('callerId', '==', userId));
+const calleeQuery = query(collection, where('calleeId', '==', userId));
+// Merge results, deduplicate by doc ID, sort chronologically
+```
+
+**Call Log Data Structure**:
+
+```typescript
+interface CallLog {
+  id: string;
+  roomId: string;
+  callerId: string;
+  callerName: string;
+  callerAvatar?: string;
+  calleeId: string;
+  calleeName: string;
+  calleeAvatar?: string;
+  mediaType: 'audio' | 'video';
+  direction: 'incoming' | 'outgoing'; // Computed per-user
+  outcome: 'completed' | 'missed' | 'rejected' | 'no-answer' | 'cancelled';
+  duration?: number; // Seconds, only for completed calls
+  startedAt?: Date;
+  endedAt: Date;
+  createdAt: Date;
+}
+```
+
+### Spec Deviations
+
+The original spec recommended LiveKit for video calls, but the actual implementation uses **native WebRTC with Firestore signaling**. This decision was made because:
+
+- No external dependencies or per-minute charges
+- Full control over the connection lifecycle
+- Better learning value (deep understanding of WebRTC)
+- Simpler deployment (no separate media server)
+
+**Trade-off**: No TURN server means calls will fail behind symmetric NATs or strict corporate firewalls. This is acceptable for a portfolio project but would need addressing for production.
+
 ---
 
 **Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | ✅ Phase 4 Complete
 
-**Ready for**: Production Deployment & Polish
+**Ready for**: Phase 5 - Polish, Testing & Advanced Features
+
+---
+
+## Phase 4.5: Dark Mode & Polish
+
+**Duration**: February 27, 2026  
+**Status**: ✅ Complete
+
+This was a significant polish pass that added dark mode support across the entire application, improved room display names for direct messages, and fixed timestamp handling for Firebase Timestamp objects.
+
+### What Was Built
+
+#### 1. Dark Mode (ThemeContext) ✅
+
+**Files Created**:
+
+- [src/context/ThemeContext.tsx](src/context/ThemeContext.tsx) - Theme state management
+
+**Features**:
+
+- `ThemeProvider` and `useTheme()` hook for light/dark mode toggling
+- Initializes from `localStorage`, falls back to `prefers-color-scheme` media query, defaults to `light`
+- Toggles `dark` class on `document.documentElement` (Tailwind's class-based dark mode strategy)
+- Persists user preference to `localStorage`
+- Exposes `theme`, `toggleTheme()`, and `setTheme()`
+- Sun/Moon toggle button added to Sidebar header section
+
+**Theme Initialization Logic**:
+
+```typescript
+// Priority: localStorage > system preference > light default
+const getInitialTheme = (): Theme => {
+  const stored = localStorage.getItem('theme');
+  if (stored === 'dark' || stored === 'light') return stored;
+  if (window.matchMedia('(prefers-color-scheme: dark)').matches) return 'dark';
+  return 'light';
+};
+```
+
+**Provider Hierarchy** (updated in App.tsx):
+
+```
+Router > ThemeProvider > AuthProvider > CallProvider > App
+```
+
+#### 2. App-Wide Dark Mode Styling ✅
+
+**Files Modified** (27 files touched):
+
+- **UI Components**: Alert, Button, Card, Input - all support `dark:` variants
+- **Chat Components**: CreateRoomModal, Message, MessageInput, MessageList, RoomList, TypingIndicator, UserBrowser
+- **Layout Components**: AuthLayout, MainLayout, Sidebar
+- **Video Components**: IncomingCallModal
+- **Pages**: ChatRoom, ChatWelcome, Dashboard, Login, Profile, Signup
+- **Root**: `index.html` (meta theme-color), `src/index.css` (dark mode base styles)
+
+**Styling Pattern**:
+
+```tsx
+// Consistent dark mode pattern across all components
+className="bg-white dark:bg-gray-800 text-gray-900 dark:text-white
+           border-gray-200 dark:border-gray-700"
+```
+
+**Known Gap**: `RoomSettings.tsx` does not yet have dark mode classes applied.
+
+#### 3. Room Display Name Enhancement ✅
+
+**Files Modified**:
+
+- [src/components/chat/RoomList.tsx](src/components/chat/RoomList.tsx) - Smart display names
+- [src/pages/ChatRoom.tsx](src/pages/ChatRoom.tsx) - Header display name
+
+**Features**:
+
+- Direct message rooms now show the **other user's name** instead of the room name
+- Fetches user docs for DM room members to resolve display names
+- Falls back to room name when user data isn't available
+- Applied in both sidebar room list and chat room header
+
+#### 4. Firebase Timestamp Handling ✅
+
+**Files Modified**:
+
+- [src/components/chat/MessageList.tsx](src/components/chat/MessageList.tsx) - Message timestamp conversion
+- [src/context/CallContext.tsx](src/context/CallContext.tsx) - Call timestamp conversion
+
+**Problem**: Firebase Firestore returns `Timestamp` objects (with `seconds` and `nanoseconds`) rather than JavaScript `Date` objects. This caused rendering errors when components tried to call `.toDate()` or format timestamps.
+
+**Solution**: Added defensive conversion that handles both `Timestamp` objects and native `Date` objects:
+
+```typescript
+// Convert Firebase Timestamp to Date safely
+const toDate = (timestamp: any): Date => {
+  if (timestamp?.toDate) return timestamp.toDate(); // Firestore Timestamp
+  if (timestamp instanceof Date) return timestamp; // Already a Date
+  return new Date(timestamp); // Fallback
+};
+```
+
+#### 5. Call History Service Refactor ✅
+
+**Files Modified**:
+
+- [src/lib/callHistoryService.ts](src/lib/callHistoryService.ts) - Significant refactoring (255 lines changed)
+
+**Changes**:
+
+- Improved dual-query subscription pattern for better deduplication
+- Enhanced timestamp conversion for call log entries
+- Better error handling and edge case coverage
+- Optimized real-time subscription management
+
+### Architecture Impact
+
+**Provider Hierarchy** (final):
+
+```
+BrowserRouter
+  └─ ThemeProvider          ← NEW (dark mode state)
+      └─ AuthProvider       (auth state)
+          └─ CallProvider   (call state)
+              └─ Routes
+```
+
+**Route Structure** (final):
+
+```
+/ .......................... ChatWelcome (index)
+/chat/:roomId ............. ChatRoom
+/dashboard ................ Dashboard
+/calls .................... CallHistory
+/profile .................. Profile (standalone, not in MainLayout)
+/login .................... Login (public)
+/signup ................... Signup (public)
+```
+
+### Files Created/Modified
+
+**New Files (1)**:
+
+- `src/context/ThemeContext.tsx` - Theme provider and hook
+
+**Modified Files (27)**:
+
+- `src/App.tsx` - ThemeProvider integration, route updates
+- `src/index.css` - Dark mode base styles
+- `index.html` - Meta theme-color
+- `firestore.indexes.json` - Additional indexes
+- 23 component/page files - Dark mode `dark:` class additions
+
+### What's Working
+
+✅ Light/dark mode toggle with persistence  
+✅ System preference detection  
+✅ Consistent dark styling across 27+ files  
+✅ DM rooms show other user's name  
+✅ Timestamps handle Firebase Timestamp objects  
+✅ Call history service reliability improved  
+✅ Smooth theme transitions
+
+---
+
+## Current Status & Next Steps
+
+**Current Status**: ✅ Phase 1 Complete | ✅ Phase 2 Complete | ✅ Phase 3 Complete | ✅ Phase 4 Complete
+
+### What's Complete
+
+| Phase | Focus                            | Status      | Date         |
+| ----- | -------------------------------- | ----------- | ------------ |
+| 1     | Foundation & Authentication      | ✅ Complete | Feb 8, 2026  |
+| 2     | Core Chat Features               | ✅ Complete | Feb 8, 2026  |
+| 3     | Enhanced Messaging               | ✅ Complete | Feb 10, 2026 |
+| 3.5   | Room Management & User Discovery | ✅ Complete | Feb 11, 2026 |
+| 4     | Video Integration (WebRTC)       | ✅ Complete | Feb 13, 2026 |
+| 4.5   | Dark Mode & Polish               | ✅ Complete | Feb 27, 2026 |
+
+### Complete Feature Set
+
+- **Authentication**: Email/password + Google OAuth, session persistence, protected routes
+- **Real-time Messaging**: Send/receive messages, reactions, replies, edit/delete
+- **File Sharing**: Image/file uploads with progress tracking, preview
+- **Typing Indicators**: Real-time "user is typing..." via Firebase RTDB
+- **Rooms**: Public rooms, private groups with join requests, direct messages
+- **User Discovery**: Browse/search users, start DM conversations
+- **Member Management**: Add/remove members, approve/reject join requests
+- **Video Calling**: 1-on-1 WebRTC video calls with Firestore signaling
+- **Audio Calling**: Audio-only call mode with appropriate UI adaptations
+- **Screen Sharing**: Display capture with track replacement
+- **Call History**: Logged calls with filterable history page, inline call logs in chat
+- **Dark Mode**: Full light/dark theme support with system preference detection
+- **Presence**: Online/offline/away with RTDB + Firestore dual-write
+- **Deployment**: Vercel with SPA routing, Firebase security rules
+
+### What's Next (Phase 5)
+
+See [Phase 5: Polish, Testing & Advanced Features](phase%20plans/PHASE_5_POLISH.md) for the full plan:
+
+- [ ] **Performance**: Code splitting, lazy loading, bundle optimization
+- [ ] **PWA**: Service worker, push notifications, installability
+- [ ] **Accessibility**: ARIA labels, keyboard navigation, screen reader support
+- [ ] **Testing**: Unit tests (Vitest), E2E tests (Playwright)
+- [ ] **CI/CD**: GitHub Actions pipeline
+- [ ] **Group Video**: Extend WebRTC for multi-party calls
+- [ ] **TURN Server**: Fallback for restrictive network environments
+
+### Known Technical Debt
+
+1. No TURN server — calls fail behind symmetric NATs/strict firewalls
+2. `RoomSettings.tsx` missing dark mode styling
+3. No unit or E2E tests
+4. No code splitting / lazy loading
+5. Basic prefix-only user search (consider Algolia for production)
+6. Spec drift: Implementation uses raw WebRTC instead of LiveKit as spec suggested
+7. Spec drift: Call model uses `callerId/calleeId` instead of spec's `participants[]`
+8. Spec drift: Room uses `type: 'public'|'private'|'direct'` instead of spec's `isPrivate` boolean
+
+### Key Architecture Decisions (Summary)
+
+| Decision   | Choice                                       | Why                                                  |
+| ---------- | -------------------------------------------- | ---------------------------------------------------- |
+| Frontend   | React 19 + TypeScript + Vite                 | Type safety, performance, modern tooling             |
+| Styling    | Tailwind CSS v4                              | Rapid development, dark mode support, small bundles  |
+| Backend    | Firebase (Firestore + RTDB + Storage + Auth) | Real-time built-in, zero backend code                |
+| Video      | Native WebRTC + Firestore signaling          | No external deps, no per-minute cost, learning value |
+| State      | Context API (Auth, Call, Theme)              | Sufficient for app complexity, no Redux needed       |
+| Presence   | RTDB for real-time + Firestore for queryable | Sub-second updates + persistent data                 |
+| Typing     | Firebase RTDB                                | Ephemeral data, auto-cleanup, low latency            |
+| Deployment | Vercel                                       | Free tier, SPA routing, easy CI/CD                   |
+
+---
+
+## Journal Maintenance Guide
+
+> **IMPORTANT**: This journal must be kept up to date as development progresses. It serves as both documentation and a portfolio piece demonstrating the development thought process.
+
+### When to Update
+
+Update this journal whenever you:
+
+1. **Complete a feature or task** — Document what was built, key decisions, and challenges
+2. **Make architectural decisions** — Record the decision, alternatives considered, and rationale
+3. **Fix significant bugs** — Document the bug, root cause, and solution
+4. **Start a new phase** — Add a new phase section with goals and planned features
+5. **Deploy or release** — Note deployment details and any configuration changes
+6. **Refactor code** — Explain what changed and why
+
+### What to Include
+
+For each significant change or feature:
+
+- **What was built**: Brief description and key features
+- **Files created/modified**: List of affected files
+- **Technical decisions**: Why this approach over alternatives
+- **Challenges & solutions**: Problems encountered and how they were resolved
+- **Code examples**: Key patterns or implementations worth highlighting
+- **Testing notes**: How the feature was verified
+
+### How to Update
+
+1. **Update the header**: Increment the "Last Updated" date
+2. **Update the TOC**: Add entries for new sections
+3. **Add content in the appropriate phase section**: Keep chronological order within each phase
+4. **Update "Current Status & Next Steps"**: Reflect what's done and what's coming
+5. **Update the status lines**: The `**Current Status**:` lines between phases should reflect reality
+
+### Format Guidelines
+
+- Use `####` for individual features within a phase
+- Mark completed items with ✅
+- Include code snippets for key implementations (keep them concise)
+- Use tables for structured comparisons
+- Link to files using relative markdown links: `[filename](src/path/to/file.ts)`
+- End each phase section with "What's Working", "Lessons Learned", and "Files Created/Modified"
+
+### Commit Message Convention
+
+When updating this journal, use commit messages like:
+
+```
+docs: update development journal with Phase X features
+docs: add Phase X.Y section to development journal
+docs: update journal status and next steps
+```
 
 ---
 
