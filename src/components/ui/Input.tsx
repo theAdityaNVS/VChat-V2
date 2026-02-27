@@ -12,7 +12,11 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
   ({ label, error, helperText, icon: Icon, className = '', ...props }, ref) => {
     return (
       <div className="w-full">
-        {label && <label className="block text-sm font-medium text-gray-900 mb-1">{label}</label>}
+        {label && (
+          <label className="block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
+            {label}
+          </label>
+        )}
         <div className="relative">
           {Icon && (
             <Icon
@@ -23,9 +27,10 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           <input
             ref={ref}
             className={`
-              w-full px-3 py-2 border border-gray-300 rounded-lg
+              w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg
+              bg-white dark:bg-gray-700 dark:text-gray-100
               focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent
-              disabled:bg-gray-100 disabled:cursor-not-allowed
+              disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed
               ${Icon ? 'pl-10' : ''}
               ${error ? 'border-error ring-2 ring-error/20' : ''}
               ${className}
@@ -34,7 +39,9 @@ export const Input = React.forwardRef<HTMLInputElement, InputProps>(
           />
         </div>
         {error && <p className="text-error text-sm mt-1">{error}</p>}
-        {helperText && !error && <p className="text-gray-600 text-sm mt-1">{helperText}</p>}
+        {helperText && !error && (
+          <p className="text-gray-600 dark:text-gray-400 text-sm mt-1">{helperText}</p>
+        )}
       </div>
     );
   }

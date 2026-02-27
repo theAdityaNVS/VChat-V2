@@ -255,14 +255,14 @@ const ChatRoom = () => {
   };
 
   return (
-    <div className="flex h-full flex-col bg-white">
+    <div className="flex h-full flex-col bg-white dark:bg-gray-800 transition-colors">
       {/* Room Header */}
-      <div className="flex h-16 items-center justify-between border-b px-6 shadow-sm">
+      <div className="flex h-16 items-center justify-between border-b dark:border-gray-700 px-6 shadow-sm bg-white dark:bg-gray-800 transition-colors">
         <div>
-          <h2 className="text-lg font-semibold text-gray-800">
+          <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
             {currentRoom?.name || `Room #${roomId}`}
           </h2>
-          <p className="text-xs text-gray-500">
+          <p className="text-xs text-gray-500 dark:text-gray-400">
             {currentRoom?.members.length || 0} member(s)
             {currentRoom?.description && ` • ${currentRoom.description}`}
           </p>
@@ -274,7 +274,7 @@ const ChatRoom = () => {
               <button
                 onClick={handleInitiateAudioCall}
                 disabled={isInitiatingCall || !!currentCall}
-                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Start voice call"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -289,7 +289,7 @@ const ChatRoom = () => {
               <button
                 onClick={handleInitiateVideoCall}
                 disabled={isInitiatingCall || !!currentCall}
-                className="rounded-md p-2 text-gray-600 hover:bg-gray-100 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                className="rounded-md p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 title="Start video call"
               >
                 <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -305,7 +305,7 @@ const ChatRoom = () => {
           )}
           <button
             onClick={() => setIsSettingsOpen(true)}
-            className="rounded-md p-2 text-gray-600 hover:bg-gray-100"
+            className="rounded-md p-2 text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors"
             aria-label="Room settings"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -328,29 +328,31 @@ const ChatRoom = () => {
 
       {/* Joining Room State */}
       {isJoining && (
-        <div className="flex flex-1 items-center justify-center">
+        <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-800 transition-colors">
           <div className="text-center">
             <div className="mx-auto mb-4 h-8 w-8 animate-spin rounded-full border-4 border-blue-500 border-t-transparent"></div>
-            <p className="text-gray-600">Joining room...</p>
+            <p className="text-gray-600 dark:text-gray-300">Joining room...</p>
           </div>
         </div>
       )}
 
       {/* Joining Error State */}
       {!isJoining && joiningError && (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="rounded-lg bg-red-50 p-6 text-center">
-            <p className="text-red-600">{joiningError}</p>
+        <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-800 transition-colors">
+          <div className="rounded-lg bg-red-50 dark:bg-red-900/20 p-6 text-center">
+            <p className="text-red-600 dark:text-red-400">{joiningError}</p>
           </div>
         </div>
       )}
 
       {/* Not a Member State (for private rooms) */}
       {!isJoining && !joiningError && !isMember && currentRoom && currentRoom.type !== 'public' && (
-        <div className="flex flex-1 items-center justify-center">
-          <div className="rounded-lg bg-yellow-50 p-6 text-center">
-            <p className="text-yellow-800">You are not a member of this room.</p>
-            <p className="mt-2 text-sm text-yellow-600">
+        <div className="flex flex-1 items-center justify-center bg-white dark:bg-gray-800 transition-colors">
+          <div className="rounded-lg bg-yellow-50 dark:bg-yellow-900/20 p-6 text-center">
+            <p className="text-yellow-800 dark:text-yellow-200">
+              You are not a member of this room.
+            </p>
+            <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
               Request access from the room admin to join.
             </p>
           </div>

@@ -52,10 +52,10 @@ const MessageList = ({
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center bg-white dark:bg-gray-800 transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading messages...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading messages...</p>
         </div>
       </div>
     );
@@ -63,10 +63,10 @@ const MessageList = ({
 
   if (messages.length === 0 && callLogs.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center text-gray-500">
+      <div className="flex h-full items-center justify-center bg-white dark:bg-gray-800 transition-colors">
+        <div className="text-center text-gray-500 dark:text-gray-400">
           <svg
-            className="h-16 w-16 mx-auto mb-4 text-gray-400"
+            className="h-16 w-16 mx-auto mb-4 text-gray-400 dark:text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -85,7 +85,7 @@ const MessageList = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800 transition-colors">
       <div className="flex flex-col space-y-4">
         {timeline.map((item) => {
           if (item.type === 'message') {
