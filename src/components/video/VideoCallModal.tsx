@@ -65,25 +65,29 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
       if (videoTrack) {
         setIsRemoteVideoActive(videoTrack.enabled);
 
-        // Listen for track enabled/disabled events
-        videoTrack.addEventListener('mute', () => setIsRemoteVideoActive(false));
-        videoTrack.addEventListener('unmute', () => setIsRemoteVideoActive(true));
+        // Use named handlers so removeEventListener works correctly
+        const handleMute = () => setIsRemoteVideoActive(false);
+        const handleUnmute = () => setIsRemoteVideoActive(true);
+
+        videoTrack.addEventListener('mute', handleMute);
+        videoTrack.addEventListener('unmute', handleUnmute);
 
         // Check if track has an enabled property change (some browsers)
         const checkInterval = setInterval(() => {
-          if (videoTrack.enabled !== isRemoteVideoActive) {
-            setIsRemoteVideoActive(videoTrack.enabled);
-          }
+          setIsRemoteVideoActive((prev) => {
+            if (videoTrack.enabled !== prev) return videoTrack.enabled;
+            return prev;
+          });
         }, 500);
 
         return () => {
-          videoTrack.removeEventListener('mute', () => setIsRemoteVideoActive(false));
-          videoTrack.removeEventListener('unmute', () => setIsRemoteVideoActive(true));
+          videoTrack.removeEventListener('mute', handleMute);
+          videoTrack.removeEventListener('unmute', handleUnmute);
           clearInterval(checkInterval);
         };
       }
     }
-  }, [remoteStream, isRemoteVideoActive]);
+  }, [remoteStream]);
 
   // Start call if initiator (only once when status becomes ringing)
   useEffect(() => {

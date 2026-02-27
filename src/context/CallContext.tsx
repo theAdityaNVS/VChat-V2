@@ -1,4 +1,12 @@
-import { createContext, useContext, useState, useEffect, useRef } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+  useCallback,
+  useMemo,
+} from 'react';
 import type { ReactNode } from 'react';
 import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
@@ -37,6 +45,12 @@ export function CallProvider({ children }: CallProviderProps) {
   const dismissedCallIdsRef = useRef<Set<string>>(new Set());
   const callStatusUnsubscribesRef = useRef<Map<string, () => void>>(new Map());
   const loggedCallIdsRef = useRef<Set<string>>(new Set());
+  const activeCallIdRef = useRef<string | null>(null);
+
+  // Keep activeCallIdRef in sync
+  useEffect(() => {
+    activeCallIdRef.current = activeCallId;
+  }, [activeCallId]);
 
   // Subscribe to incoming calls
   useEffect(() => {
@@ -64,7 +78,10 @@ export function CallProvider({ children }: CallProviderProps) {
                   (updatedCall.status === 'ended' || updatedCall.status === 'rejected')
                 ) {
                   // Skip if this call is being handled by active call subscription or already logged
-                  if (activeCallId === call.id || loggedCallIdsRef.current.has(call.id)) {
+                  if (
+                    activeCallIdRef.current === call.id ||
+                    loggedCallIdsRef.current.has(call.id)
+                  ) {
                     return;
                   }
 
@@ -164,10 +181,12 @@ export function CallProvider({ children }: CallProviderProps) {
 
     unsubscribes.push(unsubscribe);
 
+    const statusUnsubs = callStatusUnsubscribesRef.current;
+
     return () => {
       unsubscribes.forEach((unsub) => unsub());
-      callStatusUnsubscribesRef.current.forEach((unsub) => unsub());
-      callStatusUnsubscribesRef.current.clear();
+      statusUnsubs.forEach((unsub) => unsub());
+      statusUnsubs.clear();
     };
   }, [currentUser]);
 
@@ -254,29 +273,32 @@ export function CallProvider({ children }: CallProviderProps) {
     };
   }, [activeCallId, currentUser?.uid]);
 
-  const initiateCall = async (data: CreateCallData): Promise<string> => {
-    if (!currentUser) {
-      throw new Error('User not authenticated');
-    }
+  const initiateCall = useCallback(
+    async (data: CreateCallData): Promise<string> => {
+      if (!currentUser) {
+        throw new Error('User not authenticated');
+      }
 
-    try {
-      // Use userDoc if available, otherwise fall back to currentUser
-      const displayName = userDoc?.displayName || currentUser.displayName || 'Anonymous';
-      const photoURL = userDoc?.photoURL || currentUser.photoURL || undefined;
+      try {
+        // Use userDoc if available, otherwise fall back to currentUser
+        const displayName = userDoc?.displayName || currentUser.displayName || 'Anonymous';
+        const photoURL = userDoc?.photoURL || currentUser.photoURL || undefined;
 
-      console.log('Initiating call to:', data.calleeId, data.calleeName);
-      const callId = await createCallService(currentUser.uid, displayName, data, photoURL);
-      console.log('Call created with ID:', callId);
+        console.log('Initiating call to:', data.calleeId, data.calleeName);
+        const callId = await createCallService(currentUser.uid, displayName, data, photoURL);
+        console.log('Call created with ID:', callId);
 
-      setActiveCallId(callId);
-      return callId;
-    } catch (error) {
-      console.error('Error initiating call:', error);
-      throw error;
-    }
-  };
+        setActiveCallId(callId);
+        return callId;
+      } catch (error) {
+        console.error('Error initiating call:', error);
+        throw error;
+      }
+    },
+    [currentUser, userDoc]
+  );
 
-  const acceptCall = async (callId: string): Promise<void> => {
+  const acceptCall = useCallback(async (callId: string): Promise<void> => {
     try {
       console.log('CallContext - Accepting call:', callId);
       await acceptCallService(callId);
@@ -301,50 +323,53 @@ export function CallProvider({ children }: CallProviderProps) {
       setIncomingCalls((prev) => prev.filter((call) => call.id !== callId));
       throw error;
     }
-  };
+  }, []);
 
-  const rejectCall = async (callId: string): Promise<void> => {
-    try {
-      // Find the call details before rejecting
-      const call = incomingCalls.find((c) => c.id === callId);
+  const rejectCall = useCallback(
+    async (callId: string): Promise<void> => {
+      try {
+        // Find the call details before rejecting
+        const call = incomingCalls.find((c) => c.id === callId);
 
-      // Mark as dismissed and logged to prevent duplicates
-      dismissedCallIdsRef.current.add(callId);
+        // Mark as dismissed and logged to prevent duplicates
+        dismissedCallIdsRef.current.add(callId);
 
-      await rejectCallService(callId);
+        await rejectCallService(callId);
 
-      // Create call log for rejected incoming call
-      if (call && !loggedCallIdsRef.current.has(callId)) {
-        loggedCallIdsRef.current.add(callId);
-        try {
-          await createCallLog({
-            callId: call.id,
-            roomId: call.roomId,
-            callerId: call.callerId,
-            callerName: call.callerName,
-            callerAvatar: call.callerAvatar,
-            calleeId: call.calleeId,
-            calleeName: call.calleeName,
-            calleeAvatar: call.calleeAvatar,
-            mediaType: call.mediaType,
-            outcome: 'rejected',
-            timestamp: new Date(),
-          });
-          console.log('Call log created for rejected call');
-        } catch (error) {
-          console.error('Error creating call log for rejected call:', error);
+        // Create call log for rejected incoming call
+        if (call && !loggedCallIdsRef.current.has(callId)) {
+          loggedCallIdsRef.current.add(callId);
+          try {
+            await createCallLog({
+              callId: call.id,
+              roomId: call.roomId,
+              callerId: call.callerId,
+              callerName: call.callerName,
+              callerAvatar: call.callerAvatar,
+              calleeId: call.calleeId,
+              calleeName: call.calleeName,
+              calleeAvatar: call.calleeAvatar,
+              mediaType: call.mediaType,
+              outcome: 'rejected',
+              timestamp: new Date(),
+            });
+            console.log('Call log created for rejected call');
+          } catch (error) {
+            console.error('Error creating call log for rejected call:', error);
+          }
         }
+
+        // Remove from incoming calls
+        setIncomingCalls((prev) => prev.filter((call) => call.id !== callId));
+      } catch (error) {
+        console.error('Error rejecting call:', error);
+        throw error;
       }
+    },
+    [incomingCalls]
+  );
 
-      // Remove from incoming calls
-      setIncomingCalls((prev) => prev.filter((call) => call.id !== callId));
-    } catch (error) {
-      console.error('Error rejecting call:', error);
-      throw error;
-    }
-  };
-
-  const endCall = async (): Promise<void> => {
+  const endCall = useCallback(async (): Promise<void> => {
     if (!activeCallId) return;
 
     try {
@@ -356,17 +381,20 @@ export function CallProvider({ children }: CallProviderProps) {
       console.error('Error ending call:', error);
       throw error;
     }
-  };
+  }, [activeCallId]);
 
-  const value: CallContextType = {
-    currentCall,
-    incomingCalls,
-    isInCall: currentCall?.status === 'connected',
-    initiateCall,
-    acceptCall,
-    rejectCall,
-    endCall,
-  };
+  const value: CallContextType = useMemo(
+    () => ({
+      currentCall,
+      incomingCalls,
+      isInCall: currentCall?.status === 'connected',
+      initiateCall,
+      acceptCall,
+      rejectCall,
+      endCall,
+    }),
+    [currentCall, incomingCalls, initiateCall, acceptCall, rejectCall, endCall]
+  );
 
   return <CallContext.Provider value={value}>{children}</CallContext.Provider>;
 }

@@ -4,7 +4,7 @@ interface CallControlsProps {
   isScreenSharing: boolean;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
-  onToggleScreenShare: () => void;
+  onToggleScreenShare: () => void | Promise<void>;
   onEndCall: () => void;
   hideVideoControls?: boolean; // Hide video/screen share controls for audio-only calls
 }

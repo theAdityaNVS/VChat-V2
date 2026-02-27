@@ -333,7 +333,7 @@ sequenceDiagram
 ### Known Issues
 
 - **ICE Candidate Race**: Early ICE candidates are queued but may cause brief connection delays.
-- **Signal Cleanup**: Firestore signals collection grows over time (no automatic cleanup).
+- ~~**Signal Cleanup**: Firestore signals collection grows over time (no automatic cleanup).~~ _(Partially addressed — signal docs now auto-delete after 5 seconds via `callService.ts`)_
 - **Reconnection**: No automatic reconnection if network drops during call.
 - **Multiple Devices**: User logged in on multiple devices may receive duplicate call notifications.
 
@@ -342,6 +342,25 @@ sequenceDiagram
 - **Restrictive Networks**: Consider adding TURN server (e.g., Twilio, Xirsys) for production.
 - **Signal Cleanup**: Implement periodic cleanup job or TTL on signals.
 - **Multiple Devices**: Future improvement to handle device-specific notifications.
+
+---
+
+## Post-Implementation Bug Fixes (6 Issues Resolved)
+
+After end-to-end review, the following bugs were identified and fixed across 5 files:
+
+| #   | File                    | Bug                                                                               | Fix                                                                    |
+| --- | ----------------------- | --------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| 1   | `useVideoCall.ts`       | Media stream leak on unmount — stale closure captured `null` localStream          | Added `localStreamRef` (React ref) to track current stream for cleanup |
+| 2   | `useVideoCall.ts`       | Unstable `onCallEnded` callback caused signal re-subscriptions on every re-render | Added `onCallEndedRef` pattern; removed from `initPeerConnection` deps |
+| 3   | `VideoCallModal.tsx`    | Event listener memory leak — anonymous functions can't be removed                 | Refactored to named `handleMute`/`handleUnmute` references             |
+| 4   | `VideoCallModal.tsx`    | Infinite effect loop — `isRemoteVideoActive` in deps of effect that sets it       | Removed from dependency array (write-only inside effect)               |
+| 5   | `CallContext.tsx`       | Context value recreated every render, causing IncomingCallModal timer resets      | Wrapped functions in `useCallback`, value in `useMemo`                 |
+| 6   | `callHistoryService.ts` | Subscriptions only handled `added` docs, ignoring `modified`/`removed`            | Refactored to `Map`-based tracking with full change type handling      |
+
+**Additional fix**: `CallControls.tsx` — `onToggleScreenShare` type corrected from `() => void` to `() => void | Promise<void>`.
+
+**Build Verification**: TypeScript compiles clean, Vite production build passes (893.78 kB JS bundle).
 
 ---
 
