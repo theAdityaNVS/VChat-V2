@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getUser } from '../../lib/userService';
 import type { Room } from '../../types/room';
 
 interface RoomListProps {
@@ -12,6 +14,46 @@ interface RoomListProps {
 const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) => {
   const { roomId } = useParams();
   const { currentUser } = useAuth();
+  const [dmUserNames, setDmUserNames] = useState<Record<string, string>>({});
+
+  // Fetch user names for direct message rooms
+  useEffect(() => {
+    const fetchDmUserNames = async () => {
+      if (!currentUser) return;
+
+      const userNamesMap: Record<string, string> = {};
+
+      for (const room of rooms) {
+        if (room.type === 'direct') {
+          // Find the other user in the DM
+          const otherUserId = room.members.find((id) => id !== currentUser.uid);
+          if (otherUserId && !userNamesMap[room.id]) {
+            try {
+              const user = await getUser(otherUserId);
+              if (user) {
+                userNamesMap[room.id] = user.displayName;
+              }
+            } catch (error) {
+              console.error('Error fetching user for DM:', error);
+              userNamesMap[room.id] = 'Unknown User';
+            }
+          }
+        }
+      }
+
+      setDmUserNames(userNamesMap);
+    };
+
+    fetchDmUserNames();
+  }, [rooms, currentUser]);
+
+  // Helper function to get the display name for a room
+  const getRoomDisplayName = (room: Room): string => {
+    if (room.type === 'direct' && dmUserNames[room.id]) {
+      return dmUserNames[room.id];
+    }
+    return room.name;
+  };
 
   if (loading) {
     return (
@@ -37,7 +79,8 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
     <div className="space-y-1">
       {rooms.map((room) => {
         const isActive = roomId === room.id;
-        const roomInitial = room.name[0].toUpperCase();
+        const displayName = getRoomDisplayName(room);
+        const roomInitial = displayName[0]?.toUpperCase() || '?';
         const isMember = currentUser && room.members.includes(currentUser.uid);
         const isPublic = room.type === 'public';
         const isPrivate = room.type === 'private';
@@ -62,7 +105,7 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
                 {room.avatarUrl ? (
                   <img
                     src={room.avatarUrl}
-                    alt={room.name}
+                    alt={displayName}
                     className="h-10 w-10 rounded-lg object-cover"
                   />
                 ) : (
@@ -71,7 +114,7 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">{room.name}</p>
+                  <p className="text-sm font-medium truncate">{displayName}</p>
                   {isPublic && !isMember && (
                     <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">
                       Public

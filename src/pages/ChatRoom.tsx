@@ -260,7 +260,9 @@ const ChatRoom = () => {
       <div className="flex h-16 items-center justify-between border-b dark:border-gray-700 px-6 shadow-sm bg-white dark:bg-gray-800 transition-colors">
         <div>
           <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-100">
-            {currentRoom?.name || `Room #${roomId}`}
+            {currentRoom?.type === 'direct' && otherUser
+              ? otherUser.displayName
+              : currentRoom?.name || `Room #${roomId}`}
           </h2>
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {currentRoom?.members.length || 0} member(s)
