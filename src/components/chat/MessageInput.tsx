@@ -268,21 +268,21 @@ const MessageInput = ({
   };
 
   return (
-    <div className="border-t bg-white p-4">
+    <div className="border-t dark:border-gray-700 bg-white dark:bg-gray-800 p-4 transition-colors">
       {/* Reply Banner */}
       {replyingTo && (
-        <div className="mb-3 p-3 bg-blue-50 border-l-4 border-blue-500 rounded flex items-start justify-between">
+        <div className="mb-3 p-3 bg-blue-50 dark:bg-blue-900/20 border-l-4 border-blue-500 rounded flex items-start justify-between">
           <div className="flex-1">
-            <div className="text-xs font-semibold text-blue-700 mb-1">
+            <div className="text-xs font-semibold text-blue-700 dark:text-blue-300 mb-1">
               Replying to {replyingTo.senderName}
             </div>
-            <div className="text-sm text-gray-700 truncate">
+            <div className="text-sm text-gray-700 dark:text-gray-200 truncate">
               {replyingTo.type === 'image' ? '📷 Image' : replyingTo.content}
             </div>
           </div>
           <button
             onClick={onCancelReply}
-            className="ml-2 text-gray-500 hover:text-gray-700"
+            className="ml-2 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
             title="Cancel reply"
           >
             <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -299,12 +299,14 @@ const MessageInput = ({
 
       {/* File Preview */}
       {selectedFile && (
-        <div className="mb-3 p-3 bg-gray-50 rounded-lg">
+        <div className="mb-3 p-3 bg-gray-50 dark:bg-gray-700 rounded-lg">
           <div className="flex items-center justify-between mb-2">
-            <span className="text-sm font-medium text-gray-700">Selected file:</span>
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-200">
+              Selected file:
+            </span>
             <button
               onClick={handleRemoveFile}
-              className="text-gray-500 hover:text-red-600"
+              className="text-gray-500 dark:text-gray-400 hover:text-red-600 dark:hover:text-red-400"
               title="Remove file"
               disabled={sending}
             >
@@ -321,7 +323,7 @@ const MessageInput = ({
           {filePreview ? (
             <img src={filePreview} alt="Preview" className="max-h-48 rounded-lg" />
           ) : (
-            <div className="flex items-center gap-2 text-sm text-gray-600">
+            <div className="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300">
               <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path
                   strokeLinecap="round"
@@ -338,14 +340,14 @@ const MessageInput = ({
           {uploadProgress && uploadProgress.status === 'uploading' && (
             <div className="mt-3">
               <div className="flex justify-between items-center mb-1">
-                <span className="text-xs text-gray-600">Uploading...</span>
-                <span className="text-xs font-medium text-blue-600">
+                <span className="text-xs text-gray-600 dark:text-gray-300">Uploading...</span>
+                <span className="text-xs font-medium text-blue-600 dark:text-blue-400">
                   {Math.round(uploadProgress.progress)}%
                 </span>
               </div>
-              <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 overflow-hidden">
                 <div
-                  className="bg-blue-600 h-2 rounded-full transition-all duration-300 ease-out"
+                  className="bg-blue-600 dark:bg-blue-500 h-2 rounded-full transition-all duration-300 ease-out"
                   style={{ width: `${uploadProgress.progress}%` }}
                 />
               </div>
@@ -353,7 +355,7 @@ const MessageInput = ({
           )}
 
           {uploadProgress && uploadProgress.status === 'error' && (
-            <div className="mt-3 p-2 bg-red-50 border border-red-200 rounded text-xs text-red-600">
+            <div className="mt-3 p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded text-xs text-red-600 dark:text-red-400">
               Error: {uploadProgress.error || 'Upload failed'}
             </div>
           )}
@@ -381,7 +383,7 @@ const MessageInput = ({
           type="button"
           onClick={() => fileInputRef.current?.click()}
           disabled={disabled || !!selectedFile}
-          className="flex-shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+          className="flex-shrink-0 rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
           aria-label="Attach file"
         >
           <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -400,7 +402,7 @@ const MessageInput = ({
             type="button"
             onClick={() => setShowEmojiPicker(!showEmojiPicker)}
             disabled={disabled || !!selectedFile}
-            className="flex-shrink-0 rounded-lg p-2 text-gray-500 hover:bg-gray-100 disabled:opacity-50"
+            className="flex-shrink-0 rounded-lg p-2 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 disabled:opacity-50"
             aria-label="Add emoji"
           >
             <svg className="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -415,15 +417,17 @@ const MessageInput = ({
 
           {/* Emoji Picker Dropdown */}
           {showEmojiPicker && (
-            <div className="absolute bottom-full left-0 mb-2 w-80 bg-white border border-gray-300 rounded-lg shadow-lg p-3 z-10">
-              <div className="text-xs font-medium text-gray-700 mb-2">Pick an emoji</div>
+            <div className="absolute bottom-full left-0 mb-2 w-80 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg shadow-lg p-3 z-10">
+              <div className="text-xs font-medium text-gray-700 dark:text-gray-200 mb-2">
+                Pick an emoji
+              </div>
               <div className="grid grid-cols-10 gap-1 max-h-48 overflow-y-auto">
                 {EMOJI_LIST.map((emoji, index) => (
                   <button
                     key={index}
                     type="button"
                     onClick={() => handleEmojiClick(emoji)}
-                    className="text-2xl hover:bg-gray-100 rounded p-1 transition-colors"
+                    className="text-2xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors"
                     title={emoji}
                   >
                     {emoji}
@@ -443,7 +447,7 @@ const MessageInput = ({
           disabled={disabled || sending}
           placeholder="Type a message... (Enter to send, Shift+Enter for new line)"
           rows={1}
-          className="flex-1 resize-none rounded-lg border border-gray-300 px-4 py-3 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 disabled:bg-gray-100 disabled:cursor-not-allowed"
+          className="flex-1 resize-none rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-3 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-500 disabled:bg-gray-100 dark:disabled:bg-gray-800 disabled:cursor-not-allowed"
           style={{ maxHeight: '150px' }}
         />
 

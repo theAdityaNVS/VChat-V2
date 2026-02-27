@@ -1,5 +1,7 @@
+import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
+import { getUser } from '../../lib/userService';
 import type { Room } from '../../types/room';
 
 interface RoomListProps {
@@ -12,14 +14,54 @@ interface RoomListProps {
 const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) => {
   const { roomId } = useParams();
   const { currentUser } = useAuth();
+  const [dmUserNames, setDmUserNames] = useState<Record<string, string>>({});
+
+  // Fetch user names for direct message rooms
+  useEffect(() => {
+    const fetchDmUserNames = async () => {
+      if (!currentUser) return;
+
+      const userNamesMap: Record<string, string> = {};
+
+      for (const room of rooms) {
+        if (room.type === 'direct') {
+          // Find the other user in the DM
+          const otherUserId = room.members.find((id) => id !== currentUser.uid);
+          if (otherUserId && !userNamesMap[room.id]) {
+            try {
+              const user = await getUser(otherUserId);
+              if (user) {
+                userNamesMap[room.id] = user.displayName;
+              }
+            } catch (error) {
+              console.error('Error fetching user for DM:', error);
+              userNamesMap[room.id] = 'Unknown User';
+            }
+          }
+        }
+      }
+
+      setDmUserNames(userNamesMap);
+    };
+
+    fetchDmUserNames();
+  }, [rooms, currentUser]);
+
+  // Helper function to get the display name for a room
+  const getRoomDisplayName = (room: Room): string => {
+    if (room.type === 'direct' && dmUserNames[room.id]) {
+      return dmUserNames[room.id];
+    }
+    return room.name;
+  };
 
   if (loading) {
     return (
       <div className="px-3 py-8 text-center">
         <div className="animate-pulse space-y-2">
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
-          <div className="h-12 bg-gray-200 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
+          <div className="h-12 bg-gray-200 dark:bg-gray-700 rounded"></div>
         </div>
       </div>
     );
@@ -27,7 +69,7 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
 
   if (rooms.length === 0) {
     return (
-      <div className="px-3 py-2 text-sm text-gray-500 text-center">
+      <div className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400 text-center">
         No rooms yet. Create one to get started!
       </div>
     );
@@ -37,7 +79,8 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
     <div className="space-y-1">
       {rooms.map((room) => {
         const isActive = roomId === room.id;
-        const roomInitial = room.name[0].toUpperCase();
+        const displayName = getRoomDisplayName(room);
+        const roomInitial = displayName[0]?.toUpperCase() || '?';
         const isMember = currentUser && room.members.includes(currentUser.uid);
         const isPublic = room.type === 'public';
         const isPrivate = room.type === 'private';
@@ -47,18 +90,22 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
             <Link
               to={`/chat/${room.id}`}
               className={`flex items-center space-x-3 rounded-lg px-3 py-2 transition-colors ${
-                isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-100'
+                isActive
+                  ? 'bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
               }`}
             >
               <div
                 className={`h-10 w-10 flex-shrink-0 rounded-lg flex items-center justify-center font-semibold ${
-                  isActive ? 'bg-blue-600 text-white' : 'bg-gray-200 text-gray-600'
+                  isActive
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300'
                 }`}
               >
                 {room.avatarUrl ? (
                   <img
                     src={room.avatarUrl}
-                    alt={room.name}
+                    alt={displayName}
                     className="h-10 w-10 rounded-lg object-cover"
                   />
                 ) : (
@@ -67,25 +114,27 @@ const RoomList = ({ rooms, loading, onJoinRoom, onRequestJoin }: RoomListProps) 
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2">
-                  <p className="text-sm font-medium truncate">{room.name}</p>
+                  <p className="text-sm font-medium truncate">{displayName}</p>
                   {isPublic && !isMember && (
-                    <span className="text-xs bg-green-100 text-green-700 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-1.5 py-0.5 rounded">
                       Public
                     </span>
                   )}
                   {isPrivate && !isMember && (
-                    <span className="text-xs bg-yellow-100 text-yellow-700 px-1.5 py-0.5 rounded">
+                    <span className="text-xs bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400 px-1.5 py-0.5 rounded">
                       Private
                     </span>
                   )}
                 </div>
                 {room.lastMessage && (
-                  <p className="text-xs text-gray-500 truncate">{room.lastMessage}</p>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                    {room.lastMessage}
+                  </p>
                 )}
               </div>
               {room.type === 'private' && (
                 <svg
-                  className="h-4 w-4 text-gray-400"
+                  className="h-4 w-4 text-gray-400 dark:text-gray-500"
                   fill="none"
                   stroke="currentColor"
                   viewBox="0 0 24 24"

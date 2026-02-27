@@ -1,5 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { CallProvider } from './context/CallContext';
+import { ThemeProvider } from './context/ThemeContext';
 import { RequireAuth } from './components/auth/RequireAuth';
 import { Login } from './pages/Login';
 import { Signup } from './pages/Signup';
@@ -8,44 +10,50 @@ import MainLayout from './components/layouts/MainLayout';
 import ChatWelcome from './pages/ChatWelcome';
 import ChatRoom from './pages/ChatRoom';
 import Profile from './pages/Profile';
+import CallHistory from './pages/CallHistory';
 
 function App() {
   return (
     <Router>
-      <AuthProvider>
-        <Routes>
-          {/* Public Routes */}
-          <Route path="/login" element={<Login />} />
-          <Route path="/signup" element={<Signup />} />
+      <ThemeProvider>
+        <AuthProvider>
+          <CallProvider>
+            <Routes>
+              {/* Public Routes */}
+              <Route path="/login" element={<Login />} />
+              <Route path="/signup" element={<Signup />} />
 
-          {/* Protected Routes */}
-          <Route
-            path="/"
-            element={
-              <RequireAuth>
-                <MainLayout />
-              </RequireAuth>
-            }
-          >
-            <Route index element={<ChatWelcome />} />
-            <Route path="chat/:roomId" element={<ChatRoom />} />
-            <Route path="dashboard" element={<Dashboard />} />
-          </Route>
+              {/* Protected Routes */}
+              <Route
+                path="/"
+                element={
+                  <RequireAuth>
+                    <MainLayout />
+                  </RequireAuth>
+                }
+              >
+                <Route index element={<ChatWelcome />} />
+                <Route path="chat/:roomId" element={<ChatRoom />} />
+                <Route path="dashboard" element={<Dashboard />} />
+                <Route path="calls" element={<CallHistory />} />
+              </Route>
 
-          {/* Profile Route (separate from MainLayout for full-page experience) */}
-          <Route
-            path="/profile"
-            element={
-              <RequireAuth>
-                <Profile />
-              </RequireAuth>
-            }
-          />
+              {/* Profile Route (separate from MainLayout for full-page experience) */}
+              <Route
+                path="/profile"
+                element={
+                  <RequireAuth>
+                    <Profile />
+                  </RequireAuth>
+                }
+              />
 
-          {/* Catch all - redirect to home */}
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </AuthProvider>
+              {/* Catch all - redirect to home */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </CallProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </Router>
   );
 }

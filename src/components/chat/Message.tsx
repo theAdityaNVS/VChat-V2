@@ -62,7 +62,7 @@ const Message = ({
   if (message.type === 'system') {
     return (
       <div className="flex justify-center my-2">
-        <div className="bg-gray-100 rounded-full px-4 py-1 text-xs text-gray-600">
+        <div className="bg-gray-100 dark:bg-gray-700 rounded-full px-4 py-1 text-xs text-gray-600 dark:text-gray-300">
           {message.content}
         </div>
       </div>
@@ -90,17 +90,21 @@ const Message = ({
       <div className={`flex flex-col max-w-[70%] ${isOwnMessage ? 'items-end' : 'items-start'}`}>
         {!isOwnMessage && (
           <div className="flex items-center gap-2 mb-1">
-            <span className="text-sm font-semibold text-gray-700">{message.senderName}</span>
-            <span className="text-xs text-gray-500">{formattedTime}</span>
+            <span className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+              {message.senderName}
+            </span>
+            <span className="text-xs text-gray-500 dark:text-gray-400">{formattedTime}</span>
           </div>
         )}
 
         <div className="relative">
           {/* Replied message preview */}
           {message.replyTo && replyToMessage && (
-            <div className="mb-2 pl-3 border-l-2 border-gray-300 bg-gray-50 p-2 rounded text-xs">
-              <div className="font-semibold text-gray-700">{replyToMessage.senderName}</div>
-              <div className="text-gray-600 truncate">
+            <div className="mb-2 pl-3 border-l-2 border-gray-300 dark:border-gray-600 bg-gray-50 dark:bg-gray-700 p-2 rounded text-xs">
+              <div className="font-semibold text-gray-700 dark:text-gray-200">
+                {replyToMessage.senderName}
+              </div>
+              <div className="text-gray-600 dark:text-gray-300 truncate">
                 {replyToMessage.type === 'image' ? '📷 Image' : replyToMessage.content}
               </div>
             </div>
@@ -111,8 +115,8 @@ const Message = ({
               isOwnMessage
                 ? 'bg-blue-600 text-white'
                 : message.isDeleted
-                  ? 'bg-gray-100 text-gray-400 italic'
-                  : 'bg-gray-100 text-gray-800'
+                  ? 'bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-500 italic'
+                  : 'bg-gray-100 dark:bg-gray-700 text-gray-800 dark:text-gray-100'
             }`}
           >
             {message.type === 'image' ? (
@@ -142,7 +146,7 @@ const Message = ({
                 onClick={() => {
                   if (onReply) onReply(message.id);
                 }}
-                className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                 title="Reply"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -158,7 +162,7 @@ const Message = ({
               {/* Reaction button */}
               <button
                 onClick={() => setShowReactionPicker(!showReactionPicker)}
-                className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                 title="Add reaction"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -175,7 +179,7 @@ const Message = ({
               {isOwnMessage && (
                 <button
                   onClick={() => setShowContextMenu(!showContextMenu)}
-                  className="p-1 rounded hover:bg-gray-200 text-gray-600"
+                  className="p-1 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-600 dark:text-gray-300"
                   title="More options"
                 >
                   <svg className="h-4 w-4" fill="currentColor" viewBox="0 0 24 24">
@@ -189,13 +193,13 @@ const Message = ({
           {/* Reaction picker */}
           {showReactionPicker && (
             <div
-              className={`absolute top-full mt-1 ${isOwnMessage ? 'right-0' : 'left-0'} bg-white border rounded-lg shadow-lg p-2 flex gap-1 z-10`}
+              className={`absolute top-full mt-1 ${isOwnMessage ? 'right-0' : 'left-0'} bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg p-2 flex gap-1 z-10`}
             >
               {commonEmojis.map((emoji) => (
                 <button
                   key={emoji}
                   onClick={() => handleReactionClick(emoji)}
-                  className="text-xl hover:bg-gray-100 rounded p-1 transition-colors"
+                  className="text-xl hover:bg-gray-100 dark:hover:bg-gray-700 rounded p-1 transition-colors"
                 >
                   {emoji}
                 </button>
@@ -205,13 +209,13 @@ const Message = ({
 
           {/* Context menu */}
           {showContextMenu && isOwnMessage && (
-            <div className="absolute top-full mt-1 right-0 bg-white border rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
+            <div className="absolute top-full mt-1 right-0 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg py-1 z-10 min-w-[120px]">
               <button
                 onClick={() => {
                   if (onReply) onReply(message.id);
                   setShowContextMenu(false);
                 }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -228,7 +232,7 @@ const Message = ({
                   if (onEdit) onEdit(message.id);
                   setShowContextMenu(false);
                 }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 dark:text-gray-200 flex items-center gap-2"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -245,7 +249,7 @@ const Message = ({
                   if (onDelete) onDelete(message.id);
                   setShowContextMenu(false);
                 }}
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 text-red-600 flex items-center gap-2"
+                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-700 text-red-600 dark:text-red-400 flex items-center gap-2"
               >
                 <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path
@@ -270,8 +274,8 @@ const Message = ({
                 onClick={() => handleReactionClick(emoji)}
                 className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-colors ${
                   hasUserReacted(emoji)
-                    ? 'bg-blue-100 border-blue-300'
-                    : 'bg-gray-100 border-gray-300 hover:bg-gray-200'
+                    ? 'bg-blue-100 dark:bg-blue-900/30 border-blue-300 dark:border-blue-700'
+                    : 'bg-gray-100 dark:bg-gray-700 border-gray-300 dark:border-gray-600 hover:bg-gray-200 dark:hover:bg-gray-600'
                 }`}
                 title={data.userNames.join(', ')}
               >
@@ -282,7 +286,9 @@ const Message = ({
           </div>
         )}
 
-        {isOwnMessage && <span className="text-xs text-gray-500 mt-1">{formattedTime}</span>}
+        {isOwnMessage && (
+          <span className="text-xs text-gray-500 dark:text-gray-400 mt-1">{formattedTime}</span>
+        )}
       </div>
     </div>
   );

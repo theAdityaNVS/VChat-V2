@@ -68,8 +68,8 @@ export const Login: React.FC = () => {
       <Card>
         {/* Header */}
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Welcome back</h1>
-          <p className="text-gray-600 mt-2">Sign in to VChat</p>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Welcome back</h1>
+          <p className="text-gray-600 dark:text-gray-400 mt-2">Sign in to VChat</p>
         </div>
 
         {/* Error Alert */}
@@ -104,9 +104,9 @@ export const Login: React.FC = () => {
 
         {/* Divider */}
         <div className="flex items-center gap-3 my-6">
-          <div className="h-px flex-1 bg-gray-200"></div>
-          <span className="text-sm text-gray-500">or</span>
-          <div className="h-px flex-1 bg-gray-200"></div>
+          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
+          <span className="text-sm text-gray-500 dark:text-gray-400">or</span>
+          <div className="h-px flex-1 bg-gray-200 dark:bg-gray-700"></div>
         </div>
 
         {/* Google Sign In */}
@@ -123,9 +123,12 @@ export const Login: React.FC = () => {
         </Button>
 
         {/* Footer */}
-        <p className="text-center text-gray-600 mt-6 text-sm">
+        <p className="text-center text-gray-600 dark:text-gray-400 mt-6 text-sm">
           Don't have an account?{' '}
-          <Link to="/signup" className="text-primary-600 hover:text-primary-700 font-medium">
+          <Link
+            to="/signup"
+            className="text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300 font-medium"
+          >
             Sign up
           </Link>
         </p>

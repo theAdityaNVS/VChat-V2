@@ -96,12 +96,17 @@ export async function updateUserProfile(uid: string, updates: Partial<User>): Pr
  * Get user document from Firestore
  */
 export async function getUserDocument(uid: string): Promise<User | null> {
-  const userDocRef = doc(db, 'users', uid);
-  const userDocSnap = await getDoc(userDocRef);
+  try {
+    const userDocRef = doc(db, 'users', uid);
+    const userDocSnap = await getDoc(userDocRef);
 
-  if (userDocSnap.exists()) {
-    return userDocSnap.data() as User;
+    if (userDocSnap.exists()) {
+      return userDocSnap.data() as User;
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error fetching user document:', error);
+    return null;
   }
-
-  return null;
 }

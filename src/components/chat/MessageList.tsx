@@ -1,10 +1,16 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../../hooks/useAuth';
 import Message from './Message';
+import { CallLogItem } from './CallLogItem';
 import type { Message as MessageType } from '../../types/message';
+import type { CallLog } from '../../types/call';
+
+type TimelineItem = { type: 'message'; data: MessageType } | { type: 'callLog'; data: CallLog };
 
 interface MessageListProps {
   messages: MessageType[];
+  callLogs?: CallLog[];
   loading: boolean;
   onReaction?: (messageId: string, emoji: string) => void;
   onEdit?: (messageId: string) => void;
@@ -14,6 +20,7 @@ interface MessageListProps {
 
 const MessageList = ({
   messages,
+  callLogs = [],
   loading,
   onReaction,
   onEdit,
@@ -23,28 +30,44 @@ const MessageList = ({
   const { currentUser } = useAuth();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // Merge and sort messages and call logs by timestamp
+  const timeline = useMemo(() => {
+    const items: TimelineItem[] = [
+      ...messages.map((msg) => ({ type: 'message' as const, data: msg })),
+      ...callLogs.map((log) => ({ type: 'callLog' as const, data: log })),
+    ];
+
+    return items.sort((a, b) => {
+      const aTime = a.type === 'message' ? a.data.createdAt : a.data.timestamp;
+      const bTime = b.type === 'message' ? b.data.createdAt : b.data.timestamp;
+      const aDate = aTime instanceof Date ? aTime : (aTime as Timestamp).toDate();
+      const bDate = bTime instanceof Date ? bTime : (bTime as Timestamp).toDate();
+      return aDate.getTime() - bDate.getTime();
+    });
+  }, [messages, callLogs]);
+
   // Auto-scroll to bottom when new messages arrive
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages]);
+  }, [timeline]);
 
   if (loading) {
     return (
-      <div className="flex h-full items-center justify-center">
+      <div className="flex h-full items-center justify-center bg-white dark:bg-gray-800 transition-colors">
         <div className="text-center">
           <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-500">Loading messages...</p>
+          <p className="text-gray-500 dark:text-gray-400">Loading messages...</p>
         </div>
       </div>
     );
   }
 
-  if (messages.length === 0) {
+  if (messages.length === 0 && callLogs.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center">
-        <div className="text-center text-gray-500">
+      <div className="flex h-full items-center justify-center bg-white dark:bg-gray-800 transition-colors">
+        <div className="text-center text-gray-500 dark:text-gray-400">
           <svg
-            className="h-16 w-16 mx-auto mb-4 text-gray-400"
+            className="h-16 w-16 mx-auto mb-4 text-gray-400 dark:text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -63,28 +86,40 @@ const MessageList = ({
   }
 
   return (
-    <div className="flex-1 overflow-y-auto p-6">
+    <div className="flex-1 overflow-y-auto p-6 bg-white dark:bg-gray-800 transition-colors">
       <div className="flex flex-col space-y-4">
-        {messages.map((message) => {
-          // Find the message being replied to if this message is a reply
-          const replyToMessage = message.replyTo
-            ? messages.find((m) => m.id === message.replyTo)
-            : undefined;
+        {timeline.map((item) => {
+          if (item.type === 'message') {
+            const message = item.data;
+            // Find the message being replied to if this message is a reply
+            const replyToMessage = message.replyTo
+              ? messages.find((m) => m.id === message.replyTo)
+              : undefined;
 
-          return (
-            <Message
-              key={message.id}
-              message={message}
-              isOwnMessage={message.senderId === currentUser?.uid}
-              currentUserId={currentUser?.uid || ''}
-              currentUserName={currentUser?.displayName || currentUser?.email || 'Unknown'}
-              onReaction={onReaction}
-              onEdit={onEdit}
-              onDelete={onDelete}
-              onReply={onReply}
-              replyToMessage={replyToMessage}
-            />
-          );
+            return (
+              <Message
+                key={`msg-${message.id}`}
+                message={message}
+                isOwnMessage={message.senderId === currentUser?.uid}
+                currentUserId={currentUser?.uid || ''}
+                currentUserName={currentUser?.displayName || currentUser?.email || 'Unknown'}
+                onReaction={onReaction}
+                onEdit={onEdit}
+                onDelete={onDelete}
+                onReply={onReply}
+                replyToMessage={replyToMessage}
+              />
+            );
+          } else {
+            // Render call log
+            return (
+              <CallLogItem
+                key={`call-${item.data.id}`}
+                log={item.data}
+                currentUserId={currentUser?.uid || ''}
+              />
+            );
+          }
         })}
         <div ref={messagesEndRef} />
       </div>

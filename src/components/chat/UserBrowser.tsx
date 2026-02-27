@@ -79,17 +79,17 @@ const UserBrowser = ({
   return (
     <div className="flex flex-col h-full">
       {/* Search Bar */}
-      <div className="p-4 border-b border-gray-200">
+      <div className="p-4 border-b border-gray-200 dark:border-gray-700">
         <div className="relative">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search users..."
-            className="w-full rounded-lg border border-gray-300 px-4 py-2 pl-10 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500"
+            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 dark:text-gray-100 px-4 py-2 pl-10 focus:border-blue-500 dark:focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 dark:focus:ring-blue-500"
           />
           <svg
-            className="absolute left-3 top-2.5 h-5 w-5 text-gray-400"
+            className="absolute left-3 top-2.5 h-5 w-5 text-gray-400 dark:text-gray-500"
             fill="none"
             stroke="currentColor"
             viewBox="0 0 24 24"
@@ -107,9 +107,9 @@ const UserBrowser = ({
       {/* User List */}
       <div className="flex-1 overflow-y-auto">
         {filteredUsers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-gray-500">
+          <div className="flex flex-col items-center justify-center py-12 text-gray-500 dark:text-gray-400">
             <svg
-              className="h-16 w-16 mb-4 text-gray-300"
+              className="h-16 w-16 mb-4 text-gray-300 dark:text-gray-600"
               fill="none"
               stroke="currentColor"
               viewBox="0 0 24 24"
@@ -124,13 +124,13 @@ const UserBrowser = ({
             <p className="text-sm">No users found</p>
           </div>
         ) : (
-          <ul className="divide-y divide-gray-200">
+          <ul className="divide-y divide-gray-200 dark:divide-gray-700">
             {filteredUsers.map((user) => (
               <li
                 key={user.uid}
                 onClick={() => handleUserClick(user)}
-                className={`flex items-center justify-between p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                  isSelected(user.uid) ? 'bg-blue-50' : ''
+                className={`flex items-center justify-between p-4 hover:bg-gray-50 dark:hover:bg-gray-700 cursor-pointer transition-colors ${
+                  isSelected(user.uid) ? 'bg-blue-50 dark:bg-blue-900/30' : ''
                 }`}
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -154,10 +154,16 @@ const UserBrowser = ({
 
                   {/* User Info */}
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-gray-900 truncate">{user.displayName}</p>
-                    <p className="text-xs text-gray-500 truncate">{user.email}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100 truncate">
+                      {user.displayName}
+                    </p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                      {user.email}
+                    </p>
                     {user.bio && (
-                      <p className="text-xs text-gray-400 truncate mt-0.5">{user.bio}</p>
+                      <p className="text-xs text-gray-400 dark:text-gray-500 truncate mt-0.5">
+                        {user.bio}
+                      </p>
                     )}
                   </div>
 
@@ -177,7 +183,7 @@ const UserBrowser = ({
                     {onStartDirectMessage && !multiSelect && (
                       <button
                         onClick={(e) => handleDirectMessage(user, e)}
-                        className="p-2 rounded-full hover:bg-blue-100 text-blue-600 transition-colors"
+                        className="p-2 rounded-full hover:bg-blue-100 dark:hover:bg-blue-900/30 text-blue-600 dark:text-blue-400 transition-colors"
                         title="Start direct message"
                       >
                         <svg
