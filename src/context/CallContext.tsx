@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useRef } from 'react';
 import type { ReactNode } from 'react';
+import { Timestamp } from 'firebase/firestore';
 import { useAuth } from '../hooks/useAuth';
 import {
   createCall as createCallService,
@@ -201,8 +202,13 @@ export function CallProvider({ children }: CallProviderProps) {
                 outcome = 'completed';
                 // Calculate duration in seconds
                 const start =
-                  call.startedAt instanceof Date ? call.startedAt : call.startedAt.toDate();
-                const end = call.endedAt instanceof Date ? call.endedAt : call.endedAt.toDate();
+                  call.startedAt instanceof Date
+                    ? call.startedAt
+                    : (call.startedAt as Timestamp).toDate();
+                const end =
+                  call.endedAt instanceof Date
+                    ? call.endedAt
+                    : (call.endedAt as Timestamp).toDate();
                 duration = Math.floor((end.getTime() - start.getTime()) / 1000);
               } else {
                 // Call was ended without being answered
