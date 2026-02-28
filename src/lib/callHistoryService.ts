@@ -32,11 +32,25 @@ export const createCallLog = async (data: {
   try {
     const callLogsRef = collection(db, 'callLogs');
 
-    await addDoc(callLogsRef, {
-      ...data,
+    // Build the document, omitting undefined fields (Firestore rejects them)
+    const doc: Record<string, unknown> = {
+      callId: data.callId,
+      roomId: data.roomId,
+      callerId: data.callerId,
+      callerName: data.callerName,
+      calleeId: data.calleeId,
+      calleeName: data.calleeName,
+      mediaType: data.mediaType,
+      outcome: data.outcome,
       timestamp: Timestamp.fromDate(data.timestamp),
       createdAt: Timestamp.now(),
-    });
+    };
+
+    if (data.callerAvatar != null) doc.callerAvatar = data.callerAvatar;
+    if (data.calleeAvatar != null) doc.calleeAvatar = data.calleeAvatar;
+    if (data.duration != null) doc.duration = data.duration;
+
+    await addDoc(callLogsRef, doc);
 
     console.log('Call log created successfully');
   } catch (error) {

@@ -16,7 +16,6 @@ import MessageList from '../components/chat/MessageList';
 import MessageInput from '../components/chat/MessageInput';
 import TypingIndicator from '../components/chat/TypingIndicator';
 import RoomSettings from '../components/chat/RoomSettings';
-import VideoCallModal from '../components/video/VideoCallModal';
 
 const ChatRoom = () => {
   const { roomId } = useParams<{ roomId: string }>();
@@ -28,7 +27,6 @@ const ChatRoom = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isJoining, setIsJoining] = useState(false);
   const [joiningError, setJoiningError] = useState<string | null>(null);
-  const [showVideoCall, setShowVideoCall] = useState(false);
   const [otherUser, setOtherUser] = useState<UserDoc | null>(null);
   const [isInitiatingCall, setIsInitiatingCall] = useState(false);
   const [callLogs, setCallLogs] = useState<CallLog[]>([]);
@@ -159,7 +157,6 @@ const ChatRoom = () => {
         calleeAvatar: otherUser.photoURL,
         mediaType: 'video',
       });
-      setShowVideoCall(true);
     } catch (error) {
       console.error('Failed to initiate video call:', error);
     } finally {
@@ -182,27 +179,12 @@ const ChatRoom = () => {
         calleeAvatar: otherUser.photoURL,
         mediaType: 'audio',
       });
-      setShowVideoCall(true);
     } catch (error) {
       console.error('Failed to initiate audio call:', error);
     } finally {
       setIsInitiatingCall(false);
     }
   };
-
-  // Show video call modal when there's an active call
-  useEffect(() => {
-    if (currentCall && (currentCall.status === 'ringing' || currentCall.status === 'connected')) {
-      console.log('Opening video call modal for status:', currentCall.status);
-      setShowVideoCall(true);
-    } else if (
-      currentCall &&
-      (currentCall.status === 'ended' || currentCall.status === 'rejected')
-    ) {
-      console.log('Closing video call modal for status:', currentCall.status);
-      setShowVideoCall(false);
-    }
-  }, [currentCall]);
 
   const handleCancelReply = () => {
     setReplyingTo(null);
@@ -394,15 +376,6 @@ const ChatRoom = () => {
           room={currentRoom}
           isOpen={isSettingsOpen}
           onClose={() => setIsSettingsOpen(false)}
-        />
-      )}
-
-      {/* Video Call Modal */}
-      {showVideoCall && currentCall && currentUser && (
-        <VideoCallModal
-          callId={currentCall.id}
-          isInitiator={currentCall.callerId === currentUser.uid}
-          onClose={() => setShowVideoCall(false)}
         />
       )}
     </div>

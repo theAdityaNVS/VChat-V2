@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { useCall } from '../../context/CallContext';
 import { useAuth } from '../../hooks/useAuth';
 import { useVideoCall } from '../../hooks/useVideoCall';
@@ -26,12 +26,15 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     currentCall?.mediaType
   );
 
+  const [screenShareError, setScreenShareError] = useState<string | null>(null);
+
   const {
     localStream,
     remoteStream,
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
+    isScreenSharingSupported,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,
@@ -51,17 +54,38 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     },
   });
 
-  // Attach local stream to video element
+  // Wrapper to catch screen share errors and show user feedback
+  const handleToggleScreenShare = useCallback(async () => {
+    try {
+      setScreenShareError(null);
+      await toggleScreenShare();
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Screen sharing failed';
+      setScreenShareError(message);
+      // Auto-dismiss after 4 seconds
+      setTimeout(() => setScreenShareError(null), 4000);
+    }
+  }, [toggleScreenShare]);
+
+  // Attach local stream to video element (with iOS autoplay handling)
   useEffect(() => {
     if (localVideoRef.current && localStream) {
       localVideoRef.current.srcObject = localStream;
+      // iOS Safari requires explicit play() call after setting srcObject
+      localVideoRef.current.play().catch((err) => {
+        console.debug('Local video autoplay prevented:', err.name);
+      });
     }
   }, [localStream]);
 
-  // Attach remote stream to video element
+  // Attach remote stream to video element (with iOS autoplay handling)
   useEffect(() => {
     if (remoteVideoRef.current && remoteStream) {
       remoteVideoRef.current.srcObject = remoteStream;
+      // iOS Safari requires explicit play() call after setting srcObject
+      remoteVideoRef.current.play().catch((err) => {
+        console.debug('Remote video autoplay prevented:', err.name);
+      });
 
       // Monitor remote video track state
       const videoTrack = remoteStream.getVideoTracks()[0];
@@ -217,15 +241,15 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
             )}
           </div>
 
-          {/* Local Video (picture-in-picture) */}
-          <div className="absolute top-4 right-4 w-64 h-48 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
+          {/* Local Video (picture-in-picture) - responsive for mobile */}
+          <div className="absolute top-4 right-4 w-32 h-24 sm:w-48 sm:h-36 md:w-64 md:h-48 bg-gray-800 rounded-lg overflow-hidden shadow-lg">
             <div className="relative w-full h-full">
               <video
                 ref={localVideoRef}
                 autoPlay
                 playsInline
                 muted
-                className={`w-full h-full object-cover mirror ${!localStream || !isVideoEnabled || isAudioOnly ? 'hidden' : ''}`}
+                className={`w-full h-full object-cover ${!isScreenSharing ? 'mirror' : ''} ${!localStream || !isVideoEnabled || isAudioOnly ? 'hidden' : ''}`}
               />
               {(!localStream || !isVideoEnabled || isAudioOnly) && (
                 <div className="absolute inset-0 flex items-center justify-center text-white bg-gradient-to-br from-gray-700 to-gray-800">
@@ -279,15 +303,23 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
           </div>
         </div>
 
+        {/* Screen share error toast */}
+        {screenShareError && (
+          <div className="absolute bottom-28 left-1/2 -translate-x-1/2 bg-red-600 text-white px-4 py-2 rounded-lg shadow-lg text-sm z-10 animate-fade-in">
+            {screenShareError}
+          </div>
+        )}
+
         {/* Controls */}
-        <div className="p-6 bg-gray-900">
+        <div className="p-4 sm:p-6 bg-gray-900">
           <CallControls
             isAudioEnabled={isAudioEnabled}
             isVideoEnabled={isVideoEnabled}
             isScreenSharing={isScreenSharing}
+            isScreenSharingSupported={isScreenSharingSupported}
             onToggleAudio={toggleAudio}
             onToggleVideo={toggleVideo}
-            onToggleScreenShare={toggleScreenShare}
+            onToggleScreenShare={handleToggleScreenShare}
             onEndCall={handleEndCall}
             hideVideoControls={isAudioOnly}
           />

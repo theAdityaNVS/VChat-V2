@@ -65,7 +65,7 @@ const IncomingCallModal = () => {
   };
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-6 w-96 animate-bounce-in border-4 border-blue-500 dark:border-blue-600 animate-pulse-border">
+    <div className="fixed top-4 right-4 left-4 sm:left-auto z-50 bg-white dark:bg-gray-800 rounded-lg shadow-2xl p-4 sm:p-6 sm:w-96 animate-bounce-in border-4 border-blue-500 dark:border-blue-600 animate-pulse-border">
       <div className="flex items-start gap-4">
         {/* Avatar */}
         <div className="flex-shrink-0 relative">

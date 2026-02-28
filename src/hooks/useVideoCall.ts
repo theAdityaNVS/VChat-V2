@@ -10,15 +10,28 @@ import {
 } from '../lib/callService';
 import type { MediaType } from '../types/call';
 
-// STUN servers for NAT traversal
-const ICE_SERVERS = {
+// STUN + TURN servers for NAT traversal (TURN needed for symmetric NAT on mobile)
+const ICE_SERVERS: RTCConfiguration = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
-    { urls: 'stun:stun2.l.google.com:19302' },
-    { urls: 'stun:stun3.l.google.com:19302' },
-    { urls: 'stun:stun4.l.google.com:19302' },
+    {
+      urls: 'turn:openrelay.metered.ca:80',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
+    {
+      urls: 'turn:openrelay.metered.ca:443?transport=tcp',
+      username: 'openrelayproject',
+      credential: 'openrelayproject',
+    },
   ],
+  iceCandidatePoolSize: 10,
 };
 
 interface UseVideoCallProps {
@@ -36,6 +49,7 @@ interface UseVideoCallReturn {
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenSharing: boolean;
+  isScreenSharingSupported: boolean;
   toggleAudio: () => void;
   toggleVideo: () => void;
   toggleScreenShare: () => Promise<void>;
@@ -56,6 +70,10 @@ export const useVideoCall = ({
   const [isAudioEnabled, setIsAudioEnabled] = useState(true);
   const [isVideoEnabled, setIsVideoEnabled] = useState(mediaType === 'video');
   const [isScreenSharing, setIsScreenSharing] = useState(false);
+
+  // Check if screen sharing is supported (not available on most mobile browsers)
+  const isScreenSharingSupported =
+    typeof navigator !== 'undefined' && !!navigator.mediaDevices?.getDisplayMedia;
 
   const peerConnectionRef = useRef<RTCPeerConnection | null>(null);
   const originalVideoTrackRef = useRef<MediaStreamTrack | null>(null);
@@ -107,10 +125,31 @@ export const useVideoCall = ({
           noiseSuppression: true,
           autoGainControl: true,
         },
-        video: mediaType === 'video' ? { width: 1280, height: 720 } : false,
+        video:
+          mediaType === 'video'
+            ? {
+                width: { ideal: 1280, min: 320 },
+                height: { ideal: 720, min: 240 },
+                facingMode: 'user',
+              }
+            : false,
       };
 
-      const stream = await navigator.mediaDevices.getUserMedia(constraints);
+      let stream: MediaStream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia(constraints);
+      } catch (constraintError) {
+        // Fallback to basic constraints if ideal fails (common on mobile)
+        console.warn(
+          'Ideal constraints failed, falling back to basic constraints:',
+          constraintError
+        );
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+          video: mediaType === 'video',
+        });
+      }
+
       console.log('Media stream acquired:', {
         audioTracks: stream.getAudioTracks().length,
         videoTracks: stream.getVideoTracks().length,
@@ -128,6 +167,8 @@ export const useVideoCall = ({
           );
         } else if (error.name === 'NotFoundError') {
           throw new Error('No camera/microphone found on this device.');
+        } else if (error.name === 'OverconstrainedError') {
+          throw new Error('Camera does not support requested resolution. Try again.');
         }
       }
       throw new Error('Failed to access camera/microphone');
@@ -191,6 +232,28 @@ export const useVideoCall = ({
           if (onCallEndedRef.current) {
             onCallEndedRef.current();
           }
+        }
+      };
+
+      // Fallback: monitor iceConnectionState for browsers that don't support connectionState
+      peerConnection.oniceconnectionstatechange = () => {
+        const iceState = peerConnection.iceConnectionState;
+        console.log('ICE connection state:', iceState);
+
+        if (iceState === 'failed') {
+          // Attempt ICE restart before giving up
+          console.log('ICE connection failed, attempting ICE restart...');
+          peerConnection.restartIce();
+        }
+
+        if (iceState === 'disconnected') {
+          // Give a grace period for reconnection (e.g., network switch on mobile)
+          setTimeout(() => {
+            if (peerConnection.iceConnectionState === 'disconnected') {
+              console.log('ICE still disconnected after grace period, attempting restart...');
+              peerConnection.restartIce();
+            }
+          }, 5000);
         }
       };
 
@@ -433,34 +496,48 @@ export const useVideoCall = ({
    * Stop screen sharing and restore camera
    */
   const stopScreenShare = useCallback(async () => {
-    if (!localStream || !peerConnectionRef.current || !originalVideoTrackRef.current) return;
+    const stream = localStreamRef.current;
+    if (!stream || !peerConnectionRef.current || !originalVideoTrackRef.current) return;
 
     try {
       const sender = peerConnectionRef.current.getSenders().find((s) => s.track?.kind === 'video');
 
       if (sender) {
+        // Stop the screen share track before replacing
+        const screenTrack = stream.getVideoTracks()[0];
+        if (screenTrack) {
+          screenTrack.stop();
+        }
+
         await sender.replaceTrack(originalVideoTrackRef.current);
-        localStream.removeTrack(localStream.getVideoTracks()[0]);
-        localStream.addTrack(originalVideoTrackRef.current);
+        stream.removeTrack(stream.getVideoTracks()[0] || screenTrack);
+        stream.addTrack(originalVideoTrackRef.current);
+        setLocalStream(stream);
         setIsScreenSharing(false);
         originalVideoTrackRef.current = null;
       }
     } catch (error) {
       console.error('Error stopping screen share:', error);
     }
-  }, [localStream]);
+  }, []); // No deps needed – uses refs only
 
   /**
    * Toggle screen sharing
    */
   const toggleScreenShare = useCallback(async () => {
-    if (!localStream || !peerConnectionRef.current) return;
+    const stream = localStreamRef.current;
+    if (!stream || !peerConnectionRef.current) return;
 
     try {
       if (isScreenSharing) {
         // Stop screen sharing, restore camera
         await stopScreenShare();
       } else {
+        // Check if screen sharing is supported (not available on mobile)
+        if (!navigator.mediaDevices?.getDisplayMedia) {
+          throw new Error('Screen sharing is not supported on this device.');
+        }
+
         // Start screen sharing
         const screenStream = await navigator.mediaDevices.getDisplayMedia({
           video: true,
@@ -468,7 +545,7 @@ export const useVideoCall = ({
         });
 
         const screenTrack = screenStream.getVideoTracks()[0];
-        const currentVideoTrack = localStream.getVideoTracks()[0];
+        const currentVideoTrack = stream.getVideoTracks()[0];
 
         // Save original video track
         originalVideoTrackRef.current = currentVideoTrack;
@@ -480,20 +557,34 @@ export const useVideoCall = ({
 
         if (sender) {
           await sender.replaceTrack(screenTrack);
-          localStream.removeTrack(currentVideoTrack);
-          localStream.addTrack(screenTrack);
+          stream.removeTrack(currentVideoTrack);
+          stream.addTrack(screenTrack);
+          setLocalStream(stream);
           setIsScreenSharing(true);
 
           // Handle when user stops sharing via browser UI
           screenTrack.onended = () => {
             stopScreenShare();
           };
+        } else {
+          // No video sender (shouldn't happen in video calls)
+          screenTrack.stop();
+          throw new Error('No video track to replace for screen sharing.');
         }
       }
     } catch (error) {
       console.error('Error toggling screen share:', error);
+      // Re-throw so the UI can show a user-friendly message
+      if (error instanceof Error) {
+        // Don't throw for user-cancelled screen share picker
+        if (error.name === 'NotAllowedError' || error.name === 'AbortError') {
+          console.log('Screen share was cancelled by user');
+          return;
+        }
+        throw error;
+      }
     }
-  }, [localStream, isScreenSharing, stopScreenShare]);
+  }, [isScreenSharing, stopScreenShare]);
 
   /**
    * End call and cleanup.
@@ -506,6 +597,12 @@ export const useVideoCall = ({
     if (localStreamRef.current) {
       localStreamRef.current.getTracks().forEach((track) => track.stop());
       localStreamRef.current = null;
+    }
+
+    // Stop the saved camera track if screen sharing was active
+    if (originalVideoTrackRef.current) {
+      originalVideoTrackRef.current.stop();
+      originalVideoTrackRef.current = null;
     }
 
     // Close peer connection – this triggers 'closed' state which we intentionally ignore
@@ -533,6 +630,12 @@ export const useVideoCall = ({
         localStreamRef.current = null;
       }
 
+      // Stop saved camera track from screen sharing
+      if (originalVideoTrackRef.current) {
+        originalVideoTrackRef.current.stop();
+        originalVideoTrackRef.current = null;
+      }
+
       // Close peer connection
       if (peerConnectionRef.current) {
         peerConnectionRef.current.close();
@@ -551,6 +654,7 @@ export const useVideoCall = ({
     isAudioEnabled,
     isVideoEnabled,
     isScreenSharing,
+    isScreenSharingSupported,
     toggleAudio,
     toggleVideo,
     toggleScreenShare,

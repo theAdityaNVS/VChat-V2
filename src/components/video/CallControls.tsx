@@ -2,6 +2,7 @@ interface CallControlsProps {
   isAudioEnabled: boolean;
   isVideoEnabled: boolean;
   isScreenSharing: boolean;
+  isScreenSharingSupported?: boolean;
   onToggleAudio: () => void;
   onToggleVideo: () => void;
   onToggleScreenShare: () => void | Promise<void>;
@@ -13,6 +14,7 @@ const CallControls = ({
   isAudioEnabled,
   isVideoEnabled,
   isScreenSharing,
+  isScreenSharingSupported = true,
   onToggleAudio,
   onToggleVideo,
   onToggleScreenShare,
@@ -20,11 +22,11 @@ const CallControls = ({
   hideVideoControls = false,
 }: CallControlsProps) => {
   return (
-    <div className="flex items-center justify-center gap-4 p-4 bg-gray-800 rounded-lg">
+    <div className="flex items-center justify-center gap-3 sm:gap-4 p-3 sm:p-4 bg-gray-800 rounded-lg">
       {/* Microphone Toggle */}
       <button
         onClick={onToggleAudio}
-        className={`p-4 rounded-full transition-colors ${
+        className={`p-3 sm:p-4 rounded-full transition-colors ${
           isAudioEnabled
             ? 'bg-gray-700 hover:bg-gray-600 text-white'
             : 'bg-red-600 hover:bg-red-700 text-white'
@@ -62,7 +64,7 @@ const CallControls = ({
       {!hideVideoControls && (
         <button
           onClick={onToggleVideo}
-          className={`p-4 rounded-full transition-colors ${
+          className={`p-3 sm:p-4 rounded-full transition-colors ${
             isVideoEnabled
               ? 'bg-gray-700 hover:bg-gray-600 text-white'
               : 'bg-red-600 hover:bg-red-700 text-white'
@@ -91,11 +93,11 @@ const CallControls = ({
         </button>
       )}
 
-      {/* Screen Share Toggle */}
-      {!hideVideoControls && (
+      {/* Screen Share Toggle — hidden on audio-only calls and unsupported devices (mobile) */}
+      {!hideVideoControls && isScreenSharingSupported && (
         <button
           onClick={onToggleScreenShare}
-          className={`p-4 rounded-full transition-colors ${
+          className={`p-3 sm:p-4 rounded-full transition-colors ${
             isScreenSharing
               ? 'bg-blue-600 hover:bg-blue-700 text-white'
               : 'bg-gray-700 hover:bg-gray-600 text-white'
@@ -116,7 +118,7 @@ const CallControls = ({
       {/* End Call */}
       <button
         onClick={onEndCall}
-        className="p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-colors"
+        className="p-3 sm:p-4 rounded-full bg-red-600 hover:bg-red-700 text-white transition-colors"
         title="End call"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
