@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
+import { getDoc, doc } from 'firebase/firestore';
+import { db } from '../config/firebase';
 import {
   subscribeToSignals,
   subscribeToCall,
@@ -10,7 +12,13 @@ import type { MediaType } from '../types/call';
 
 // STUN servers for NAT traversal
 const ICE_SERVERS = {
-  iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }],
+  iceServers: [
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    { urls: 'stun:stun3.l.google.com:19302' },
+    { urls: 'stun:stun4.l.google.com:19302' },
+  ],
 };
 
 interface UseVideoCallProps {
@@ -163,12 +171,23 @@ export const useVideoCall = ({
 
       // Handle connection state changes
       peerConnection.onconnectionstatechange = () => {
-        console.log('Connection state:', peerConnection.connectionState);
-        if (
-          peerConnection.connectionState === 'disconnected' ||
-          peerConnection.connectionState === 'failed' ||
-          peerConnection.connectionState === 'closed'
-        ) {
+        const state = peerConnection.connectionState;
+        console.log('Connection state:', state);
+        // 'disconnected' is transient and can recover – ignore it.
+        // 'closed' is triggered by our own endCall() – ignore it.
+        // Only act on 'failed' which is a permanent unrecoverable error.
+        if (state === 'failed') {
+          // Stop local stream tracks to release camera/mic
+          if (localStreamRef.current) {
+            localStreamRef.current.getTracks().forEach((track) => track.stop());
+            localStreamRef.current = null;
+          }
+          peerConnectionRef.current = null;
+          setLocalStream(null);
+          setRemoteStream(null);
+          setIsAudioEnabled(true);
+          setIsVideoEnabled(mediaType === 'video');
+          setIsScreenSharing(false);
           if (onCallEndedRef.current) {
             onCallEndedRef.current();
           }
@@ -177,7 +196,7 @@ export const useVideoCall = ({
 
       return peerConnection;
     },
-    [callId, userId, onRemoteStream]
+    [callId, userId, onRemoteStream, mediaType]
   );
 
   /**
@@ -197,6 +216,17 @@ export const useVideoCall = ({
         return;
       }
 
+      // Eagerly resolve remoteUserId if the subscription hasn't fired yet
+      if (!remoteUserId.current) {
+        console.log('useVideoCall - startCall: remoteUserId not set yet, fetching from Firestore');
+        const callSnap = await getDoc(doc(db, 'calls', callId));
+        if (callSnap.exists()) {
+          const data = callSnap.data();
+          remoteUserId.current = data.callerId === userId ? data.calleeId : data.callerId;
+          console.log('useVideoCall - startCall: Resolved remoteUserId:', remoteUserId.current);
+        }
+      }
+
       console.log('useVideoCall - startCall: Creating offer, remote user:', remoteUserId.current);
 
       // Create and send offer
@@ -214,7 +244,7 @@ export const useVideoCall = ({
           type: 'offer',
         });
       } else {
-        console.error('useVideoCall - startCall: No remote user ID available yet');
+        console.error('useVideoCall - startCall: No remote user ID could be determined');
       }
     } catch (error) {
       console.error('Error starting call:', error);
@@ -466,33 +496,30 @@ export const useVideoCall = ({
   }, [localStream, isScreenSharing, stopScreenShare]);
 
   /**
-   * End call and cleanup
+   * End call and cleanup.
+   * Only cleans up WebRTC resources – does NOT invoke onCallEnded.
+   * Callers (VideoCallModal) are responsible for updating Firestore and closing the UI.
    */
   const endCall = useCallback(() => {
     console.log('useVideoCall - endCall() called');
-    // Stop all tracks
-    if (localStream) {
-      localStream.getTracks().forEach((track) => track.stop());
+    // Stop all tracks via ref so we always get the latest stream
+    if (localStreamRef.current) {
+      localStreamRef.current.getTracks().forEach((track) => track.stop());
+      localStreamRef.current = null;
     }
 
-    // Close peer connection
+    // Close peer connection – this triggers 'closed' state which we intentionally ignore
     if (peerConnectionRef.current) {
       peerConnectionRef.current.close();
       peerConnectionRef.current = null;
     }
 
-    localStreamRef.current = null;
     setLocalStream(null);
     setRemoteStream(null);
     setIsAudioEnabled(true);
     setIsVideoEnabled(true);
     setIsScreenSharing(false);
-
-    if (onCallEndedRef.current) {
-      console.log('useVideoCall - Calling onCallEnded callback');
-      onCallEndedRef.current();
-    }
-  }, [localStream]);
+  }, []); // Empty deps – uses refs only, never stale
 
   // Cleanup on unmount only (not when endCall changes)
   useEffect(() => {

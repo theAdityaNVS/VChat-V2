@@ -43,6 +43,9 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     isInitiator,
     mediaType: currentCall?.mediaType || 'video',
     onCallEnded: () => {
+      // Called when the WebRTC connection fails externally (e.g. remote peer dropped).
+      // endVideoCall() cleans up tracks/PC; endCall() updates Firestore; onClose() closes UI.
+      endVideoCall();
       endCall();
       onClose();
     },
