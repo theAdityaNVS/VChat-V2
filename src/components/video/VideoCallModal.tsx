@@ -45,11 +45,15 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
     userId: currentUser?.uid || '',
     isInitiator,
     mediaType: currentCall?.mediaType || 'video',
-    onCallEnded: () => {
+    onCallEnded: async () => {
       // Called when the WebRTC connection fails externally (e.g. remote peer dropped).
       // endVideoCall() cleans up tracks/PC; endCall() updates Firestore; onClose() closes UI.
       endVideoCall();
-      endCall();
+      try {
+        await endCall();
+      } catch (err) {
+        console.error('Failed to end call in Firestore:', err);
+      }
       onClose();
     },
   });
@@ -120,8 +124,14 @@ const VideoCallModal = ({ callId, isInitiator, onClose }: VideoCallModalProps) =
   useEffect(() => {
     if (isInitiator && currentCall?.status === 'ringing') {
       console.log('VideoCallModal - Initiator starting call');
-      startCall().catch((error) => {
+      startCall().catch(async (error) => {
         console.error('Failed to start call:', error);
+        // Bug 6 fix: end the call in Firestore to prevent zombie 'ringing' state
+        try {
+          await endCall();
+        } catch {
+          // Ignore cleanup errors
+        }
       });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

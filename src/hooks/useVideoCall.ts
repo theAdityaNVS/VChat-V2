@@ -94,6 +94,9 @@ export const useVideoCall = ({
   // Queue for ICE candidates that arrive before remote description is set
   const iceCandidateQueueRef = useRef<RTCIceCandidateInit[]>([]);
 
+  // Mutex to prevent concurrent peer connection initialization (Bug 1 fix)
+  const isInitializingPCRef = useRef(false);
+
   // Set remote user ID from the call document
   useEffect(() => {
     if (!callId || !userId) return;
@@ -182,6 +185,12 @@ export const useVideoCall = ({
     async (stream: MediaStream) => {
       if (!callId) return null;
 
+      // Close existing peer connection if any (Bug 3 fix)
+      if (peerConnectionRef.current) {
+        peerConnectionRef.current.close();
+        peerConnectionRef.current = null;
+      }
+
       const peerConnection = new RTCPeerConnection(ICE_SERVERS);
       peerConnectionRef.current = peerConnection;
 
@@ -222,6 +231,10 @@ export const useVideoCall = ({
           if (localStreamRef.current) {
             localStreamRef.current.getTracks().forEach((track) => track.stop());
             localStreamRef.current = null;
+          }
+          // Close PC before nullifying to release native resources (Bug 2 fix)
+          if (peerConnectionRef.current) {
+            peerConnectionRef.current.close();
           }
           peerConnectionRef.current = null;
           setLocalStream(null);
@@ -292,10 +305,10 @@ export const useVideoCall = ({
 
       console.log('useVideoCall - startCall: Creating offer, remote user:', remoteUserId.current);
 
-      // Create and send offer
+      // Create and send offer (Bug 9 fix: only request video for video calls)
       const offer = await peerConnection.createOffer({
         offerToReceiveAudio: true,
-        offerToReceiveVideo: true,
+        offerToReceiveVideo: mediaType === 'video',
       });
 
       await peerConnection.setLocalDescription(offer);
@@ -313,7 +326,7 @@ export const useVideoCall = ({
       console.error('Error starting call:', error);
       throw error;
     }
-  }, [callId, isInitiator, userId, initLocalStream, initPeerConnection]);
+  }, [callId, isInitiator, userId, mediaType, initLocalStream, initPeerConnection]);
 
   /**
    * Handle incoming signals
@@ -339,11 +352,27 @@ export const useVideoCall = ({
         // Set remote user ID
         remoteUserId.current = signal.senderId;
 
-        // Initialize peer connection if not already done
-        if (!peerConnectionRef.current) {
+        // Initialize peer connection if not already done (Bug 1 fix: mutex prevents concurrent init)
+        if (!peerConnectionRef.current && !isInitializingPCRef.current) {
+          isInitializingPCRef.current = true;
           console.log('useVideoCall - Initializing peer connection for incoming signal');
-          const stream = await initLocalStream();
-          await initPeerConnection(stream);
+          try {
+            const stream = await initLocalStream();
+            await initPeerConnection(stream);
+          } finally {
+            isInitializingPCRef.current = false;
+          }
+        } else if (!peerConnectionRef.current && isInitializingPCRef.current) {
+          // Another signal triggered initialization concurrently — queue ICE candidates
+          console.log('useVideoCall - PC init in progress, queueing signal:', signal.type);
+          if (signal.type === 'ice-candidate' && signal.iceCandidate) {
+            iceCandidateQueueRef.current.push({
+              candidate: signal.iceCandidate.candidate,
+              sdpMid: signal.iceCandidate.sdpMid,
+              sdpMLineIndex: signal.iceCandidate.sdpMLineIndex,
+            });
+          }
+          return;
         }
 
         const peerConnection = peerConnectionRef.current;
@@ -614,9 +643,9 @@ export const useVideoCall = ({
     setLocalStream(null);
     setRemoteStream(null);
     setIsAudioEnabled(true);
-    setIsVideoEnabled(true);
+    setIsVideoEnabled(mediaType === 'video');
     setIsScreenSharing(false);
-  }, []); // Empty deps – uses refs only, never stale
+  }, [mediaType]); // Bug 8 fix: capture mediaType for correct reset
 
   // Cleanup on unmount only (not when endCall changes)
   useEffect(() => {

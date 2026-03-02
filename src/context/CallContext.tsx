@@ -375,10 +375,13 @@ export function CallProvider({ children }: CallProviderProps) {
     try {
       console.log('Ending call:', activeCallId);
       await endCallService(activeCallId);
-      setCurrentCall(null);
-      setActiveCallId(null);
+      // State cleanup is handled by the active call subscription
+      // when it detects status 'ended' (with a 1s delay for UI feedback / call log creation)
     } catch (error) {
       console.error('Error ending call:', error);
+      // Force cleanup on error since subscription may not fire
+      setCurrentCall(null);
+      setActiveCallId(null);
       throw error;
     }
   }, [activeCallId]);

@@ -1,21 +1,9 @@
 import { Outlet } from 'react-router-dom';
 import { useState } from 'react';
 import Sidebar from './Sidebar';
-import IncomingCallModal from '../video/IncomingCallModal';
-import VideoCallModal from '../video/VideoCallModal';
-import { useCall } from '../../context/CallContext';
-import { useAuth } from '../../hooks/useAuth';
 
 const MainLayout = () => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
-  const { currentCall } = useCall();
-  const { currentUser } = useAuth();
-
-  // Show video call modal globally when there's an active call that's ringing or connected
-  const showVideoCall =
-    !!currentCall &&
-    !!currentUser &&
-    (currentCall.status === 'ringing' || currentCall.status === 'connected');
 
   const toggleSidebar = () => {
     setIsSidebarOpen(!isSidebarOpen);
@@ -23,9 +11,6 @@ const MainLayout = () => {
 
   return (
     <div className="flex h-screen overflow-hidden bg-gray-100 dark:bg-gray-950 transition-colors">
-      {/* Incoming Call Modal */}
-      <IncomingCallModal />
-
       {/* Sidebar */}
       <div
         className={`${
@@ -70,17 +55,6 @@ const MainLayout = () => {
           <Outlet />
         </main>
       </div>
-
-      {/* Global Video Call Modal */}
-      {showVideoCall && currentCall && currentUser && (
-        <VideoCallModal
-          callId={currentCall.id}
-          isInitiator={currentCall.callerId === currentUser.uid}
-          onClose={() => {
-            /* Modal auto-closes via currentCall status change */
-          }}
-        />
-      )}
     </div>
   );
 };
